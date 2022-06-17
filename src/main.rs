@@ -60,6 +60,7 @@ async fn main() -> Result<()> {
                     )
                 )
             )
+            .service(hello)
     });
 
 
