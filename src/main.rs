@@ -1,5 +1,7 @@
 mod backend;
 
+// TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
+
 use actix_web::{App, HttpServer, web, get, Responder};
 use actix_web::middleware::Logger;
 use actix_web::web::{scope as prefixed_service};
@@ -49,14 +51,17 @@ async fn main() -> Result<()> {
                             .service(
                                 (
                                     article::create,
-                                    article::list,
                                     article::fetch,
                                     article::update,
                                     article::remove,
                                 )
                             ),
+                        article::list,
+                        /*
                         prefixed_service("/user")
                             .service(user::login),
+
+                         */
                     )
                 )
             )
