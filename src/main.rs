@@ -11,6 +11,7 @@ use actix_web::middleware::Logger;
 use actix_web::web::{scope as prefixed_service};
 use anyhow::{Result, Context as _};
 use fern::colors::ColoredLevelConfig;
+use crate::backend::api::article;
 
 fn setup_logger() -> Result<()> {
     let mut colors = ColoredLevelConfig::new();
@@ -31,15 +32,9 @@ fn setup_logger() -> Result<()> {
     Ok(())
 }
 
-#[get("/")]
-async fn hello() -> impl Responder {
-    "Hello, World!"
-}
-
 #[actix_web::main]
 async fn main() -> Result<()> {
     setup_logger().unwrap_or_default();
-    use crate::backend::api::{article, user};
 
     let server = HttpServer::new(|| {
         App::new()
@@ -61,15 +56,9 @@ async fn main() -> Result<()> {
                                 )
                             ),
                         article::list,
-                        /*
-                        prefixed_service("/user")
-                            .service(user::login),
-
-                         */
                     )
                 )
             )
-            .service(hello)
     });
 
 
