@@ -31,13 +31,15 @@ pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
     if let Ok(text) = plain_text {
         info!("valid utf8");
         let res = GLOBAL_FILE.set_entry(path.clone(), text).await;
-        let success = res.is_ok();
-        if success {
-            HttpResponse::build(StatusCode::OK)
-                .respond_with_auto_charset(format!("OK, saved as {path}.", path = &path))
-        } else {
-            HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                .respond_with_auto_charset(format!("Exception: {err}", err = res.err().unwrap()))
+        match res {
+            Ok(_) => {
+                HttpResponse::build(StatusCode::OK)
+                    .respond_with_auto_charset(format!("OK, saved as {path}.", path = &path))
+            }
+            Err(err) => {
+                HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                    .respond_with_auto_charset(format!("Exception: {err}"))
+            }
         }
     } else {
         info!("invalid utf8");
