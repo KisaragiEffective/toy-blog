@@ -1,8 +1,8 @@
 use std::string::FromUtf8Error;
 use std::sync::{Arc, RwLock};
-use actix_web::{HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
 use actix_web::{get, post, put, delete};
-use actix_web::http::header::LAST_MODIFIED;
+use actix_web::http::header::{AUTHORIZATION, LAST_MODIFIED};
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Path, ReqData};
 use chrono::{DateTime, FixedOffset, TimeZone};
@@ -16,7 +16,11 @@ static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::ne
 // TODO: らぎブログフロントエンド作りたいからCORSヘッダー設定してくれ - @yanorei32
 
 #[post("/{article_id}")]
-pub async fn create(path: Path<String>, data: Bytes) -> impl Responder {
+pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl Responder {
+    if validate_master_password(&req) != ValidateResult::RightBearer {
+        return unauthorized()
+    }
+
     let path = ArticleId::new(path.into_inner());
     info!("create");
     if GLOBAL_FILE.exists(&path).await.unwrap() {
@@ -83,7 +87,11 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
 }
 
 #[put("/{article_id}")]
-pub async fn update(path: Path<String>, data: Bytes) -> impl Responder {
+pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl Responder {
+    if validate_master_password(&req) != ValidateResult::RightBearer {
+        return unauthorized()
+    }
+
     let article_id = ArticleId::new(path.into_inner());
     match GLOBAL_FILE.exists(&article_id).await {
         Ok(exists) => {
@@ -119,8 +127,12 @@ pub async fn update(path: Path<String>, data: Bytes) -> impl Responder {
 }
 
 #[delete("/{article_id}")]
-pub async fn remove(path: Path<String>) -> impl Responder {
+pub async fn remove(path: Path<String>, req: HttpRequest) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
+    if validate_master_password(&req) != ValidateResult::RightBearer {
+        return unauthorized()
+    }
+
     match GLOBAL_FILE.exists(&article_id).await {
         Ok(exists) => {
             if exists {
@@ -159,4 +171,38 @@ pub async fn list() -> impl Responder {
                 .respond_with_auto_charset(format!("Exception {err}"))
         }
     }
+}
+
+fn validate_master_password(req: &HttpRequest) -> ValidateResult {
+    if let Some(token) = req.headers().get(AUTHORIZATION) {
+        // TODO: this is subject to change
+        let correct_token = "1234567890";
+        let s = match String::from_utf8(token.as_bytes().to_vec()) {
+            Ok(s) => s,
+            Err(e) => return ValidateResult::WrongAuthMethod
+        };
+        if s.len() <= 7 || &s[0..=6] != "Bearer " {
+            return ValidateResult::WrongAuthMethod
+        }
+
+        if &s[7..] != correct_token {
+            return ValidateResult::WrongBearer
+        }
+        ValidateResult::RightBearer
+    } else {
+        ValidateResult::None
+    }
+}
+
+fn unauthorized() -> HttpResponse {
+    HttpResponse::build(StatusCode::UNAUTHORIZED)
+        .respond_with_auto_charset("You must be authorized to perform this action.")
+}
+
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+enum ValidateResult {
+    RightBearer,
+    WrongBearer,
+    WrongAuthMethod,
+    None,
 }
