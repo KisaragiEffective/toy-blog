@@ -326,6 +326,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "serde",
  "time 0.1.44",
  "winapi",
 ]
@@ -1174,6 +1175,7 @@ dependencies = [
  "clap",
  "fern",
  "log",
+ "once_cell",
  "serde",
  "serde_json",
 ]

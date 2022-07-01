@@ -6,15 +6,17 @@ use actix_web::{App, HttpServer, web, get, Responder};
 use actix_web::middleware::Logger;
 use actix_web::web::{scope as prefixed_service};
 use anyhow::{Result, Context as _};
+use fern::colors::ColoredLevelConfig;
 
 fn setup_logger() -> Result<()> {
+    let mut colors = ColoredLevelConfig::new();
     fern::Dispatch::new()
-        .format(|out, message, record| {
+        .format(move |out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",
                 chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
                 record.target(),
-                record.level(),
+                colors.color(record.level()),
                 message
             ))
         })
