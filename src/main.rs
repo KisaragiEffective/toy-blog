@@ -38,11 +38,6 @@ async fn main() -> Result<()> {
 
     let server = HttpServer::new(|| {
         App::new()
-            // TODO: postponed
-            //   - GET    /api/user/current
-            //   - POST   /api/user/token/create
-            //   - GET    /api/user/token/list
-            //   - DELETE /api/user/token/delete
             .service(prefixed_service("/api")
                 .service(
                     (
