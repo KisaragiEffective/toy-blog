@@ -6,15 +6,15 @@ mod extension;
 
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
-use actix_web::{App, HttpServer, web, get, Responder};
-use actix_web::middleware::Logger;
+use actix_web::{App, HttpServer};
+
 use actix_web::web::{scope as prefixed_service};
 use anyhow::{Result, Context as _};
 use fern::colors::ColoredLevelConfig;
 use crate::backend::api::article;
 
 fn setup_logger() -> Result<()> {
-    let mut colors = ColoredLevelConfig::new();
+    let colors = ColoredLevelConfig::new();
     fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
@@ -23,7 +23,7 @@ fn setup_logger() -> Result<()> {
                 record.target(),
                 colors.color(record.level()),
                 message
-            ))
+            ));
         })
         .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
