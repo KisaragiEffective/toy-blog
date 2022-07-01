@@ -1,10 +1,8 @@
-use std::string::FromUtf8Error;
-use std::sync::{Arc, RwLock};
-use actix_web::{HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder};
 use actix_web::{get, post, put, delete};
 use actix_web::http::header::{AUTHORIZATION, LAST_MODIFIED};
 use actix_web::http::StatusCode;
-use actix_web::web::{Bytes, Path, ReqData};
+use actix_web::web::{Bytes, Path};
 use chrono::{DateTime, FixedOffset, TimeZone};
 use log::info;
 use once_cell::sync::Lazy;
@@ -16,6 +14,7 @@ static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::ne
 // TODO: らぎブログフロントエンド作りたいからCORSヘッダー設定してくれ - @yanorei32
 
 #[post("/{article_id}")]
+#[allow(clippy::future_not_send)]
 pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl Responder {
     if validate_master_password(&req) != ValidateResult::RightBearer {
         return unauthorized()
@@ -32,13 +31,15 @@ pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
     if let Ok(text) = plain_text {
         info!("valid utf8");
         let res = GLOBAL_FILE.set_entry(path.clone(), text).await;
-        let success = res.is_ok();
-        if success {
-            HttpResponse::build(StatusCode::OK)
-                .respond_with_auto_charset(format!("OK, saved as {path}.", path = &path))
-        } else {
-            HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                .respond_with_auto_charset(format!("Exception: {err}", err = res.err().unwrap()))
+        match res {
+            Ok(_) => {
+                HttpResponse::build(StatusCode::OK)
+                    .respond_with_auto_charset(format!("OK, saved as {path}.", path = &path))
+            }
+            Err(err) => {
+                HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                    .respond_with_auto_charset(format!("Exception: {err}"))
+            }
         }
     } else {
         info!("invalid utf8");
@@ -87,6 +88,7 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
 }
 
 #[put("/{article_id}")]
+#[allow(clippy::future_not_send)]
 pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl Responder {
     if validate_master_password(&req) != ValidateResult::RightBearer {
         return unauthorized()
@@ -127,6 +129,7 @@ pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
 }
 
 #[delete("/{article_id}")]
+#[allow(clippy::future_not_send)]
 pub async fn remove(path: Path<String>, req: HttpRequest) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
     if validate_master_password(&req) != ValidateResult::RightBearer {
@@ -179,7 +182,7 @@ fn validate_master_password(req: &HttpRequest) -> ValidateResult {
         let correct_token = "1234567890";
         let s = match String::from_utf8(token.as_bytes().to_vec()) {
             Ok(s) => s,
-            Err(e) => return ValidateResult::WrongAuthMethod
+            Err(_) => return ValidateResult::WrongAuthMethod
         };
         if s.len() <= 7 || &s[0..=6] != "Bearer " {
             return ValidateResult::WrongAuthMethod

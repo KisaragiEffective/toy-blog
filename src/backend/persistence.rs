@@ -3,11 +3,11 @@ use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local, NaiveDateTime};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use anyhow::{Context, Result};
+use chrono::{DateTime, Local};
 use log::{error, info};
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Serialize, Deserialize};
 
 pub struct ArticleRepository {
     path: PathBuf,
@@ -27,7 +27,7 @@ impl ArticleRepository {
     }
 
     // TODO: 誤って同じパスに対してこのメソッドを二回以上呼ぶと破滅する
-    pub fn new(path: impl AsRef<Path>) -> ArticleRepository {
+    pub fn new(path: impl AsRef<Path>) -> Self {
         Self::create_default_file_if_absent(path.as_ref());
 
         Self {
@@ -143,7 +143,7 @@ pub struct Article {
 pub struct ArticleId(String);
 
 impl ArticleId {
-    pub fn new(s: String) -> Self {
+    pub const fn new(s: String) -> Self {
         Self(s)
     }
 }
