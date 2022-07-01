@@ -109,9 +109,9 @@ impl FileScheme {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Article {
-    created_at: DateTime<Local>,
-    content: String,
-    id: ArticleId
+    pub created_at: DateTime<Local>,
+    pub content: String,
+    pub id: ArticleId
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]

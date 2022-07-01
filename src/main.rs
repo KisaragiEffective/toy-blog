@@ -1,4 +1,8 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 mod backend;
+mod extension;
 
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
@@ -39,10 +43,8 @@ async fn main() -> Result<()> {
 
     let server = HttpServer::new(|| {
         App::new()
-            // TODO: HTTP endpoint
-            //   - GET    /api/user/current
-
             // TODO: postponed
+            //   - GET    /api/user/current
             //   - POST   /api/user/token/create
             //   - GET    /api/user/token/list
             //   - DELETE /api/user/token/delete
