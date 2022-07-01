@@ -120,8 +120,30 @@ pub async fn update(path: Path<String>, data: Bytes) -> impl Responder {
 
 #[delete("/{article_id}")]
 pub async fn remove(path: Path<String>) -> impl Responder {
-    todo!();
-    "todo"
+    let article_id = ArticleId::new(path.into_inner());
+    match GLOBAL_FILE.exists(&article_id).await {
+        Ok(exists) => {
+            if exists {
+                match GLOBAL_FILE.remove(&article_id).await {
+                    Ok(_) => {
+                        HttpResponse::build(StatusCode::NO_CONTENT)
+                            .respond_with_auto_charset("deleted")
+                    }
+                    Err(err) => {
+                        HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                            .respond_with_auto_charset(format!("Exception {err}"))
+                    }
+                }
+            } else {
+                HttpResponse::build(StatusCode::NOT_FOUND)
+                    .respond_with_auto_charset("Not found")
+            }
+        }
+        Err(err) => {
+            HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                .respond_with_auto_charset(format!("Exception {err}"))
+        }
+    }
 }
 
 #[get("/articles")]

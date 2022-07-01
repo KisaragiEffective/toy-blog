@@ -78,6 +78,31 @@ impl ArticleRepository {
         Ok(a.data.contains_key(article_id))
     }
 
+    pub async fn remove(&self, article_id: &ArticleId) -> Result<()> {
+        info!("calling remove");
+        let mut a = self.parse_file_as_json()?;
+        info!("parsed");
+        let (file, _lock) = self.get_write_handle();
+        let file = file?;
+
+        {
+            (&mut a.data).remove(article_id);
+            info!("modified");
+        }
+
+        let json = serde_json::to_string(&a)?;
+        write!(
+            &mut BufWriter::new(&file),
+            "{json}"
+        )?;
+
+        // You must truncate, or you will be fired
+        file.set_len(json.len() as u64)?;
+
+        info!("wrote");
+        Ok(())
+    }
+
     fn parse_file_as_json(&self) -> Result<FileScheme> {
         let (file, _lock) = self.get_read_handle();
         let mut read_all = BufReader::new(file?);
