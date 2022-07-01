@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use anyhow::{anyhow, Context, Result};
@@ -44,7 +44,7 @@ impl ArticleRepository {
         (File::options().read(true).open(&self.path).context("open file"), self.lock.read().unwrap())
     }
 
-    pub async fn add_entry(&self, article_id: ArticleId, article_content: String) -> Result<()> {
+    pub async fn set_entry(&self, article_id: ArticleId, article_content: String) -> Result<()> {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");

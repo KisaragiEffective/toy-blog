@@ -1,3 +1,4 @@
+use std::string::FromUtf8Error;
 use std::sync::{Arc, RwLock};
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use actix_web::{get, post, put, delete};
@@ -26,7 +27,7 @@ pub async fn create(path: Path<String>, data: Bytes) -> impl Responder {
     let plain_text = String::from_utf8(data.to_vec());
     if let Ok(text) = plain_text {
         info!("valid utf8");
-        let res = GLOBAL_FILE.add_entry(path.clone(), text).await;
+        let res = GLOBAL_FILE.set_entry(path.clone(), text).await;
         let success = res.is_ok();
         if success {
             HttpResponse::build(StatusCode::OK)
@@ -82,9 +83,39 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
 }
 
 #[put("/{article_id}")]
-pub async fn update(path: Path<String>) -> impl Responder {
-    todo!();
-    "todo"
+pub async fn update(path: Path<String>, data: Bytes) -> impl Responder {
+    let article_id = ArticleId::new(path.into_inner());
+    match GLOBAL_FILE.exists(&article_id).await {
+        Ok(exists) => {
+            if exists {
+                let data = match String::from_utf8(data.to_vec()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        return HttpResponse::build(StatusCode::BAD_REQUEST)
+                            .respond_with_auto_charset(format!("You must provide valid UTF-8 sequence: {e}"))
+                    }
+                };
+
+                match GLOBAL_FILE.set_entry(article_id, data).await {
+                    Ok(_) => {
+                        HttpResponse::build(StatusCode::NO_CONTENT)
+                            .respond_with_auto_charset("saved")
+                    }
+                    Err(err) => {
+                        HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                            .respond_with_auto_charset(format!("Exception {err}"))
+                    }
+                }
+            } else {
+                HttpResponse::build(StatusCode::NOT_FOUND)
+                    .respond_with_auto_charset("Not found")
+            }
+        }
+        Err(err) => {
+            HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                .respond_with_auto_charset(format!("Exception {err}"))
+        }
+    }
 }
 
 #[delete("/{article_id}")]
