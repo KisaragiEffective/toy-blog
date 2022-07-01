@@ -103,7 +103,7 @@ impl ArticleRepository {
         Ok(())
     }
 
-    fn parse_file_as_json(&self) -> Result<FileScheme> {
+    pub(in crate::backend) fn parse_file_as_json(&self) -> Result<FileScheme> {
         let (file, _lock) = self.get_read_handle();
         let mut read_all = BufReader::new(file?);
         let mut buf = vec![];
@@ -119,9 +119,9 @@ impl ArticleRepository {
 }
 
 #[derive(Serialize, Deserialize)]
-struct FileScheme {
-    // TODO: この形式は好みではないが、実装の速度を優先して形式の調整は凍結する
-    data: HashMap<ArticleId, Article>
+pub(in crate::backend) struct FileScheme {
+    // TODO: この形式で永続化されるのは好みではないが、実装の速度を優先して形式の調整は凍結する
+    pub(in crate::backend) data: HashMap<ArticleId, Article>
 }
 
 impl FileScheme {

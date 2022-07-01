@@ -147,7 +147,16 @@ pub async fn remove(path: Path<String>) -> impl Responder {
 }
 
 #[get("/articles")]
+#[allow(clippy::pedantic)]
 pub async fn list() -> impl Responder {
-    todo!();
-    "todo"
+    match GLOBAL_FILE.parse_file_as_json() {
+        Ok(entries) => {
+            HttpResponse::build(StatusCode::OK)
+                .json(entries)
+        }
+        Err(err) => {
+            HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
+                .respond_with_auto_charset(format!("Exception {err}"))
+        }
+    }
 }
