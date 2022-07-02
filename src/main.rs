@@ -7,6 +7,7 @@ mod extension;
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
 use actix_web::{App, HttpServer};
+use actix_web::middleware::Logger;
 
 use actix_web::web::{scope as prefixed_service};
 use anyhow::{Result, Context as _};
@@ -54,6 +55,8 @@ async fn main() -> Result<()> {
                     )
                 )
             )
+
+            .wrap(Logger::new(r#"%a(CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#))
     });
 
 
