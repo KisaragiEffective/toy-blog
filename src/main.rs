@@ -7,6 +7,7 @@ mod extension;
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
 use std::io::ErrorKind;
+use std::net::{IpAddr, SocketAddr};
 use std::string::FromUtf8Error;
 use actix_web::{App, HttpServer};
 use actix_web::dev::{fn_service, Server};
@@ -70,6 +71,27 @@ async fn main() -> Result<()> {
     });
 
     tokio::spawn({
+        async fn prompt(stream: &mut TcpStream, addr: SocketAddr) {
+            match stream.write_all(b"toy-blog telnet > ").await {
+                Ok(_) => {}
+                Err(e) => {
+                    match e.kind() {
+                        ErrorKind::BrokenPipe => {
+                            debug!("Connection is closed by remote client ({addr}). Closing pipe.");
+                            // This will result in NotConnected, anyway ignores that
+                            disconnect(stream).await.unwrap_or_default();
+                        }
+                        // "rethrow"
+                        _ => Err(e).unwrap()
+                    }
+                }
+            }
+        }
+
+        async fn disconnect(stream: &mut TcpStream) -> std::io::Result<()> {
+            stream.shutdown().await
+        }
+
         Server::build()
             .bind("echo", ("127.0.0.1", 23112), move || {
                 fn_service(move |mut stream: TcpStream| {
@@ -80,20 +102,8 @@ async fn main() -> Result<()> {
                         let mut tc = telnet_codec::TelnetCodec::new(8192);
                         'connection_loop: loop {
                             let mut buf = BytesMut::new();
-                            match stream.write_all(b"toy-blog telnet > ").await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    match e.kind() {
-                                        ErrorKind::BrokenPipe => {
-                                            debug!("Connection is closed by remote client ({addr}). Closing pipe.");
-                                            // This will result in NotConnected, anyway ignores that
-                                            stream.shutdown().await.unwrap_or_default();
-                                        }
-                                        // "rethrow"
-                                        _ => Err(e).unwrap()
-                                    }
-                                }
-                            }
+                            prompt(&mut stream, addr).await;
+
                             let constructed = once_cell::unsync::OnceCell::new();
 
                             'read: loop {
@@ -161,7 +171,7 @@ async fn main() -> Result<()> {
                                     TelnetEvent::Command(command) => {
                                         if command == 244 {
                                             stream.write_all(b"Bye-bye! (Ctrl-C)").await.unwrap();
-                                            stream.shutdown().await.unwrap();
+                                            disconnect(&mut stream).await.unwrap();
                                         }
                                     }
                                 }
