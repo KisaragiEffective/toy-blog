@@ -36,19 +36,19 @@ impl ArticleRepository {
         }
     }
 
-    fn get_write_handle(&self) -> (Result<File>, RwLockWriteGuard<'_, ()>) {
-        (File::options().write(true).open(&self.path).context("open file"), self.lock.write().unwrap())
+    fn get_overwrite_handle(&self) -> (Result<File>, RwLockWriteGuard<'_, ()>) {
+        (File::options().write(true).truncate(true).open(&self.path).context("open file"), self.lock.write().unwrap())
     }
 
     fn get_read_handle(&self) -> (Result<File>, RwLockReadGuard<'_, ()>) {
         (File::options().read(true).open(&self.path).context("open file"), self.lock.read().unwrap())
     }
 
-    pub async fn set_entry(&self, article_id: ArticleId, article_content: String) -> Result<()> {
+    pub async fn set_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
-        let (file, _lock) = self.get_write_handle();
+        let (file, _lock) = self.get_overwrite_handle();
         let file = file?;
 
         {
@@ -56,7 +56,6 @@ impl ArticleRepository {
                 created_at: Local::now(),
                 // visible: false,
                 content: article_content,
-                id: article_id,
             });
             info!("modified");
         }
@@ -82,7 +81,7 @@ impl ArticleRepository {
         info!("calling remove");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
-        let (file, _lock) = self.get_write_handle();
+        let (file, _lock) = self.get_overwrite_handle();
         let file = file?;
 
         {
@@ -95,9 +94,6 @@ impl ArticleRepository {
             &mut BufWriter::new(&file),
             "{json}"
         )?;
-
-        // You must truncate, or you will be fired
-        file.set_len(json.len() as u64)?;
 
         info!("wrote");
         Ok(())
@@ -136,7 +132,6 @@ impl FileScheme {
 pub struct Article {
     pub created_at: DateTime<Local>,
     pub content: String,
-    pub id: ArticleId
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]

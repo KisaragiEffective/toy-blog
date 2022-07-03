@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use crate::backend::persistence::{ArticleId, ArticleRepository};
 use crate::extension::RespondPlainText;
 
-static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("index.json"));
+static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("article.json"));
 
 // TODO: らぎブログフロントエンド作りたいからCORSヘッダー設定してくれ - @yanorei32
 
@@ -30,7 +30,7 @@ pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
     let plain_text = String::from_utf8(data.to_vec());
     if let Ok(text) = plain_text {
         info!("valid utf8");
-        let res = GLOBAL_FILE.set_entry(path.clone(), text).await;
+        let res = GLOBAL_FILE.set_entry(&path, text).await;
         match res {
             Ok(_) => {
                 HttpResponse::build(StatusCode::OK)
@@ -106,7 +106,7 @@ pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
                     }
                 };
 
-                match GLOBAL_FILE.set_entry(article_id, data).await {
+                match GLOBAL_FILE.set_entry(&article_id, data).await {
                     Ok(_) => {
                         HttpResponse::build(StatusCode::NO_CONTENT)
                             .respond_with_auto_charset("saved")
@@ -162,7 +162,7 @@ pub async fn remove(path: Path<String>, req: HttpRequest) -> impl Responder {
 }
 
 #[get("/articles")]
-#[allow(clippy::pedantic)]
+#[allow(clippy::unused_async)]
 pub async fn list() -> impl Responder {
     match GLOBAL_FILE.parse_file_as_json() {
         Ok(entries) => {
