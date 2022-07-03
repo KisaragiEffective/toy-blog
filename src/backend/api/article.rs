@@ -30,7 +30,7 @@ pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
     let plain_text = String::from_utf8(data.to_vec());
     if let Ok(text) = plain_text {
         info!("valid utf8");
-        let res = GLOBAL_FILE.set_entry(path.clone(), text).await;
+        let res = GLOBAL_FILE.set_entry(&path, text).await;
         match res {
             Ok(_) => {
                 HttpResponse::build(StatusCode::OK)

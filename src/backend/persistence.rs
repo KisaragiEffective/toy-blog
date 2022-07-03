@@ -44,7 +44,7 @@ impl ArticleRepository {
         (File::options().read(true).open(&self.path).context("open file"), self.lock.read().unwrap())
     }
 
-    pub async fn set_entry(&self, article_id: ArticleId, article_content: String) -> Result<()> {
+    pub async fn set_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
