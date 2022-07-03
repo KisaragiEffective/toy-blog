@@ -8,7 +8,11 @@ mod extension;
 
 use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr};
+use std::ops::{Deref, DerefMut};
 use std::string::FromUtf8Error;
+use std::sync::{Arc, Mutex};
+use std::task::Context;
+use std::time::Duration;
 use actix_web::{App, HttpServer};
 use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
@@ -16,10 +20,11 @@ use actix_web::middleware::Logger;
 use actix_web::web::{BytesMut, scope as prefixed_service};
 use anyhow::{Result, Context as _, bail};
 use fern::colors::ColoredLevelConfig;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use futures_util::{TryFutureExt, TryStreamExt};
 use log::{debug, info};
+use mio::{Events, Poll};
 use telnet_codec::{TelnetCodec, TelnetEvent};
 use tokio_util::codec::Decoder;
 
@@ -94,94 +99,130 @@ async fn main() -> Result<()> {
 
         Server::build()
             .bind("echo", ("127.0.0.1", 23112), move || {
-                fn_service(move |mut stream: TcpStream| {
+                fn_service(move |stream: TcpStream| {
                     async move {
-                        let addr = stream.peer_addr().context("get peer addr")?;
+                        let stream = Arc::new(Mutex::new(stream));
+                        let get_stream = || {
+                            debug!("getting stream lock");
+                            let r = stream.lock().unwrap();
+                            debug!("ok");
+                            r
+                        };
+                        let addr = get_stream().peer_addr().context("get peer addr")?;
                         debug!("welcome, {}", addr);
-                        stream.write_all(b"Welcome!\r\n").await.unwrap();
-                        let mut tc = telnet_codec::TelnetCodec::new(8192);
-                        'connection_loop: loop {
-                            let mut buf = BytesMut::new();
-                            prompt(&mut stream, addr).await;
+                        get_stream().write_all(b"Welcome!\r\n").await.unwrap();
+                        get_stream().write_all(b"Don't use telnet(1)!\r\n").await.unwrap();
+                        let mut buf = Arc::new(Mutex::new(BytesMut::with_capacity(4096)));
+                        let mut size = 0;
+                        let process_command = |parts: Vec<String>| {
+                            debug!("process command");
 
-                            let constructed = once_cell::unsync::OnceCell::new();
-
-                            'read: loop {
-                                debug!("read");
-                                match stream.read_buf(&mut buf).await {
-                                    Ok(bytes_read) => {
-                                        debug!("bytes read: {bytes_read}");
-                                        debug!("current raw buffer: {bytes:x?}", bytes = buf.as_ref());
-
-                                        if bytes_read == 0 {
-                                            debug!("Socket was closed. Bye-bye {addr}!");
-                                            break 'connection_loop
+                            async move {
+                                let mut stream = get_stream();
+                                match parts.len() {
+                                    0 => {
+                                    },
+                                    1 => {
+                                        let command = parts[0].as_str();
+                                        match command {
+                                            "HELP" => {
+                                                stream.write_all(b"TODO: Well documented help").await.unwrap();
+                                            }
+                                            _ => {
+                                                stream.write_all(b"Unknown command. Please type HELP to display help.").await.unwrap();
+                                            }
                                         }
+                                    },
+                                    2 => {
+                                        let (command, params) = (parts[0].as_str(), parts[1].as_str());
+                                    },
+                                    _ => unreachable!()
+                                }
+                            }
+                        };
+                        let try_process_current_buffer = || {
+                            let mut cloned = buf.lock().unwrap();
+                            let mut tc = TelnetCodec::new(8192);
 
-                                        let parsed_telnet_codec = tc.decode(&mut buf).expect("死");
-
-                                        if let Some(parsed_codec) = parsed_telnet_codec {
-                                            debug!("telnet message candidate");
-                                            if let TelnetEvent::Data(bytes) = &parsed_codec {
-                                                debug!("candidate is data. dump: {bytes:x?} checking if terminated by a CRLF", bytes = &buf);
-                                                // each command must be terminated by CRLF in this connection
-                                                if bytes.ends_with(b"\r\n") {
-                                                    debug!("OK");
-                                                    constructed.set(parsed_codec).unwrap();
-                                                    break 'read
+                            async move {
+                                while let Some(telnet_packet) = tc.decode(&mut cloned).unwrap() {
+                                    // continue = ignore
+                                    // break = more bytes needed
+                                    match telnet_packet {
+                                        TelnetEvent::Negotiate(a, b) => {
+                                            debug!("negotiate, noun: {a}, option: {b}");
+                                            continue
+                                        },
+                                        TelnetEvent::SubNegotiate(a, bytes) => {
+                                            debug!("sub negotiate: {a}, {bytes:?}");
+                                            continue
+                                        },
+                                        TelnetEvent::Data(bytes) => {
+                                            match String::from_utf8(bytes.to_vec()) {
+                                                Ok(s) => {
+                                                    if let Some(s) = s.strip_suffix("\r\n") {
+                                                        let parts = s.splitn(2, ' ').map(ToString::to_string).collect();
+                                                        process_command(parts).await;
+                                                    } else {
+                                                        debug!("incomplete text command, awaiting further bytes");
+                                                        break
+                                                    }
                                                 }
-
-                                                debug!("NG");
-                                            } else {
-                                                debug!("candidate is not data, pass-through");
-                                                constructed.set(parsed_codec).unwrap();
-                                                break 'read
+                                                Err(e) => {
+                                                    let mut stream = get_stream();
+                                                    stream.write_all(b"Error, this is not an UTF-8.\r\n").await.unwrap();
+                                                    stream.write_all(format!("Description: {e}\r\n").as_bytes()).await.unwrap();
+                                                    stream.write_all(b"Maybe more bytes needed.\r\n").await.unwrap();
+                                                    break
+                                                }
                                             }
                                         }
-                                    }
-
-                                    Err(err) => {
-                                        eprintln!("Stream Error: {:?}", err);
-                                        bail!("oops, stream error");
-                                    }
-                                }
-                            }
-
-                            let mut outer_constructed = constructed.get().cloned();
-                            debug!("raw byte buffer: {raw:?}", raw = &buf);
-                            debug!("received telnet message: {constructed:?}");
-                            while let Some(constructed) = outer_constructed {
-                                match constructed {
-                                    TelnetEvent::Negotiate(a, b) => {}
-                                    TelnetEvent::SubNegotiate(c, d) => {}
-                                    TelnetEvent::Data(raw_bytes) => {
-                                        let read_command = match String::from_utf8(raw_bytes.to_vec()) {
-                                            Ok(s) => s,
-                                            Err(e) => {
-                                                debug!("command is invalid UTF-8 sequence. Error: {e}");
-                                                stream.write_all(b"Command must be represented in valid UTF-8 sequence. Please resend.").await.unwrap();
-                                                buf.clear();
-                                                continue 'connection_loop
-                                            }
-                                        };
-
-                                        debug!("transmit");
-                                        stream.write_all(format!("I got: {b:?}\r\n", b = read_command.as_bytes()).as_bytes()).await.unwrap();
-                                    }
-                                    TelnetEvent::Command(command) => {
-                                        if command == 244 {
-                                            stream.write_all(b"Bye-bye! (Ctrl-C)").await.unwrap();
-                                            disconnect(&mut stream).await.unwrap();
+                                        TelnetEvent::Command(code) => {
+                                            debug!("command: {code}");
+                                            continue
                                         }
                                     }
                                 }
-                                let a = tc.decode(&mut buf)?;
-                                outer_constructed = a;
                             }
+                        };
 
+                        // This function should not be inlined; it causes an dead-lock.
+                        let read_buf = || {
+                            async {
+                                get_stream().read_buf(&mut *buf.lock().unwrap()).await
+                            }
+                        };
 
-                            // DO NOT REMOVE
-                            buf.clear();
+                        let output = |s: &str| {
+                            let s = s.to_string().into_boxed_str();
+                            async move {
+                                get_stream().write_all(s.as_bytes()).await.unwrap();
+                            }
+                        };
+                        'connection_loop: loop {
+                            debug!("read");
+                            output("toy blog> ").await;
+
+                            match read_buf().await {
+                                // disconnected
+                                Ok(0) => break,
+
+                                // write bytes back to stream
+                                Ok(_bytes_read) => {
+                                    debug!("data recv");
+                                    // get_stream().write_all(b"human readable: ").await.unwrap();
+                                    // get_stream().write_all(&buf.lock().unwrap()).await.unwrap();
+                                    // get_stream().write_all(format!("raw representation: {bytes:x?}\n", bytes = &buf.lock().unwrap()).as_bytes()).await.unwrap();
+                                    // get_stream().flush().await.unwrap();
+                                    try_process_current_buffer().await;
+                                    buf.lock().unwrap().clear();
+                                }
+
+                                Err(err) => {
+                                    eprintln!("Stream Error: {:?}", err);
+                                    bail!("stream err");
+                                }
+                            }
                         }
 
                         Ok(())
