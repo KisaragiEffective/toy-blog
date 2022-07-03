@@ -56,7 +56,6 @@ impl ArticleRepository {
                 created_at: Local::now(),
                 // visible: false,
                 content: article_content,
-                id: article_id,
             });
             info!("modified");
         }
@@ -133,7 +132,6 @@ impl FileScheme {
 pub struct Article {
     pub created_at: DateTime<Local>,
     pub content: String,
-    pub id: ArticleId
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
