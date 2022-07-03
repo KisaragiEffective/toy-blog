@@ -106,7 +106,7 @@ pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
                     }
                 };
 
-                match GLOBAL_FILE.set_entry(article_id, data).await {
+                match GLOBAL_FILE.set_entry(&article_id, data).await {
                     Ok(_) => {
                         HttpResponse::build(StatusCode::NO_CONTENT)
                             .respond_with_auto_charset("saved")
@@ -162,7 +162,7 @@ pub async fn remove(path: Path<String>, req: HttpRequest) -> impl Responder {
 }
 
 #[get("/articles")]
-#[allow(clippy::pedantic)]
+#[allow(clippy::unused_async)]
 pub async fn list() -> impl Responder {
     match GLOBAL_FILE.parse_file_as_json() {
         Ok(entries) => {
