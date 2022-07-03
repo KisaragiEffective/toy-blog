@@ -36,8 +36,8 @@ impl ArticleRepository {
         }
     }
 
-    fn get_write_handle(&self) -> (Result<File>, RwLockWriteGuard<'_, ()>) {
-        (File::options().write(true).open(&self.path).context("open file"), self.lock.write().unwrap())
+    fn get_overwrite_handle(&self) -> (Result<File>, RwLockWriteGuard<'_, ()>) {
+        (File::options().write(true).truncate(true).open(&self.path).context("open file"), self.lock.write().unwrap())
     }
 
     fn get_read_handle(&self) -> (Result<File>, RwLockReadGuard<'_, ()>) {
@@ -48,7 +48,7 @@ impl ArticleRepository {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
-        let (file, _lock) = self.get_write_handle();
+        let (file, _lock) = self.get_overwrite_handle();
         let file = file?;
 
         {
@@ -82,7 +82,7 @@ impl ArticleRepository {
         info!("calling remove");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
-        let (file, _lock) = self.get_write_handle();
+        let (file, _lock) = self.get_overwrite_handle();
         let file = file?;
 
         {
@@ -95,9 +95,6 @@ impl ArticleRepository {
             &mut BufWriter::new(&file),
             "{json}"
         )?;
-
-        // You must truncate, or you will be fired
-        file.set_len(json.len() as u64)?;
 
         info!("wrote");
         Ok(())
