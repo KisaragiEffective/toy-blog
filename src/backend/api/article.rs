@@ -93,7 +93,7 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
 pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
     let token = bearer.token();
 
-    if !is_wrong_token(token) {
+    if is_wrong_token(token) {
         return unauthorized()
     }
 
@@ -136,7 +136,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
 pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
     let token = bearer.token();
-    if !is_wrong_token(token) {
+    if is_wrong_token(token) {
         return unauthorized()
     }
 
