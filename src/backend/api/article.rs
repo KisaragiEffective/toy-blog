@@ -1,8 +1,9 @@
-use actix_web::{HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpResponse, Responder};
 use actix_web::{get, post, put, delete};
-use actix_web::http::header::{AUTHORIZATION, LAST_MODIFIED};
+use actix_web::http::header::LAST_MODIFIED;
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Path};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::{DateTime, FixedOffset, TimeZone};
 use log::info;
 use once_cell::sync::Lazy;
@@ -15,8 +16,9 @@ static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::ne
 
 #[post("/{article_id}")]
 #[allow(clippy::future_not_send)]
-pub async fn create(path: Path<String>, data: Bytes, req: HttpRequest) -> impl Responder {
-    if validate_master_password(&req) != ValidateResult::RightBearer {
+pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
+    let token = bearer.token();
+    if is_right_token(token) {
         return unauthorized()
     }
 
@@ -89,8 +91,10 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
 
 #[put("/{article_id}")]
 #[allow(clippy::future_not_send)]
-pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl Responder {
-    if validate_master_password(&req) != ValidateResult::RightBearer {
+pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
+    let token = bearer.token();
+
+    if !is_right_token(token) {
         return unauthorized()
     }
 
@@ -130,9 +134,10 @@ pub async fn update(path: Path<String>, data: Bytes, req: HttpRequest) -> impl R
 
 #[delete("/{article_id}")]
 #[allow(clippy::future_not_send)]
-pub async fn remove(path: Path<String>, req: HttpRequest) -> impl Responder {
+pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
-    if validate_master_password(&req) != ValidateResult::RightBearer {
+    let token = bearer.token();
+    if !is_right_token(token) {
         return unauthorized()
     }
 
@@ -176,36 +181,13 @@ pub async fn list() -> impl Responder {
     }
 }
 
-fn validate_master_password(req: &HttpRequest) -> ValidateResult {
-    if let Some(token) = req.headers().get(AUTHORIZATION) {
-        // TODO: this is subject to change
-        let correct_token = "1234567890";
-        let s = match String::from_utf8(token.as_bytes().to_vec()) {
-            Ok(s) => s,
-            Err(_) => return ValidateResult::WrongAuthMethod
-        };
-        if s.len() <= 7 || &s[0..=6] != "Bearer " {
-            return ValidateResult::WrongAuthMethod
-        }
-
-        if &s[7..] != correct_token {
-            return ValidateResult::WrongBearer
-        }
-        ValidateResult::RightBearer
-    } else {
-        ValidateResult::None
-    }
+fn is_right_token(token: &str) -> bool {
+    // TODO: this is subject to change
+    let correct_token = "1234567890";
+    correct_token == token
 }
 
 fn unauthorized() -> HttpResponse {
     HttpResponse::build(StatusCode::UNAUTHORIZED)
         .respond_with_auto_charset("You must be authorized to perform this action.")
-}
-
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
-enum ValidateResult {
-    RightBearer,
-    WrongBearer,
-    WrongAuthMethod,
-    None,
 }

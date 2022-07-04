@@ -10,6 +10,7 @@ use actix_web::{App, HttpServer};
 use actix_web::middleware::Logger;
 
 use actix_web::web::{scope as prefixed_service};
+use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
 use anyhow::{Result, Context as _};
 use fern::colors::ColoredLevelConfig;
 use crate::backend::api::article;
@@ -55,7 +56,11 @@ async fn main() -> Result<()> {
                     )
                 )
             )
-
+            .app_data(
+                BearerAuthConfig::default()
+                    .realm("Perform write operation")
+                    .scope("article:write"),
+            )
             .wrap(Logger::new(r#"%a(CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#))
     });
 
