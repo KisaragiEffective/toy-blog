@@ -27,7 +27,7 @@ impl Serialize for ParsedAllowOrigin<'_> {
     }
 }
 fn load_allowed_origins<'a>() -> Result<ParsedAllowOrigin<'a>> {
-    let path = "cors_setting.json";
+    let path = "data/cors_setting.json";
     if !PathBuf::from(path).exists() {
         File::create(path)?;
         let write = File::options().write(true).open(path)?;
