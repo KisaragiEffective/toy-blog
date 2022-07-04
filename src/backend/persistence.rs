@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Local};
 use log::{error, info};
 use serde::{Serialize, Deserialize};
@@ -44,7 +44,7 @@ impl ArticleRepository {
         (File::options().read(true).open(&self.path).context("open file"), self.lock.read().unwrap())
     }
 
-    pub async fn set_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
+    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
@@ -52,8 +52,10 @@ impl ArticleRepository {
         let file = file?;
 
         {
+            let current_date = Local::now();
             (&mut a.data).insert(article_id.clone(), Article {
-                created_at: Local::now(),
+                created_at: current_date,
+                updated_at: current_date,
                 // visible: false,
                 content: article_content,
             });
@@ -61,6 +63,32 @@ impl ArticleRepository {
         }
 
         serde_json::to_writer(file, &a)?;
+        info!("wrote");
+        Ok(())
+    }
+
+    pub async fn update_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
+        info!("calling add_entry");
+        let mut fs = self.parse_file_as_json()?;
+        info!("parsed");
+        let (file, _lock) = self.get_overwrite_handle();
+        let file = file?;
+
+        {
+            let current_date = Local::now();
+            match (&mut fs.data).get_mut(article_id) {
+                None => {
+                    bail!("article must be exists")
+                }
+                Some(article) => {
+                    article.updated_at = current_date;
+                    article.content = article_content;
+                }
+            }
+            info!("modified");
+        }
+
+        serde_json::to_writer(file, &fs)?;
         info!("wrote");
         Ok(())
     }
@@ -131,6 +159,7 @@ impl FileScheme {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Article {
     pub created_at: DateTime<Local>,
+    pub updated_at: DateTime<Local>,
     pub content: String,
 }
 

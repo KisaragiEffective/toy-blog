@@ -32,7 +32,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
     let plain_text = String::from_utf8(data.to_vec());
     if let Ok(text) = plain_text {
         info!("valid utf8");
-        let res = GLOBAL_FILE.set_entry(&path, text).await;
+        let res = GLOBAL_FILE.create_entry(&path, text).await;
         match res {
             Ok(_) => {
                 HttpResponse::build(StatusCode::OK)
@@ -66,9 +66,8 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
                 match content {
                     Ok(content) => {
                         HttpResponse::build(StatusCode::OK)
-                            // TODO: これは正しくなく、updated_atを使う必要があるが現在はまだフィールドがない
                             // compliant with RFC 7232 (HTTP/1.1 Conditional Requests) § 2.1.1
-                            .insert_header((LAST_MODIFIED, fmt_http_date(&content.created_at)))
+                            .insert_header((LAST_MODIFIED, fmt_http_date(&content.updated_at)))
                             // TODO: Having ETag is fun, right?
                             .respond_with_auto_charset(content.content)
                     }
@@ -110,7 +109,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
                     }
                 };
 
-                match GLOBAL_FILE.set_entry(&article_id, data).await {
+                match GLOBAL_FILE.update_entry(&article_id, data).await {
                     Ok(_) => {
                         HttpResponse::build(StatusCode::NO_CONTENT)
                             .respond_with_auto_charset("saved")
