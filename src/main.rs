@@ -7,9 +7,8 @@ mod extension;
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read};
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
-use std::string::FromUtf8Error;
 use actix_web::{App, HttpServer};
 use actix_web::middleware::Logger;
 
@@ -18,10 +17,12 @@ use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
 use anyhow::{Result, Context as _, bail};
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
+use log::{debug, info};
 use once_cell::sync::OnceCell;
 use crate::backend::api::article;
 use crate::backend::cors::{middleware_factory as cors_middleware_factory};
 use crate::backend::persistence::model::ArticleId;
+use crate::backend::repository::GLOBAL_FILE;
 
 static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
 
@@ -66,11 +67,11 @@ fn setup_logger() -> Result<()> {
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+    setup_logger().unwrap_or_default();
     let args: Args = Args::parse();
     match args.subcommand {
         Commands::Run { bearer_token } => {
             GIVEN_TOKEN.set(bearer_token).unwrap();
-            setup_logger().unwrap_or_default();
 
             let server = HttpServer::new(|| {
                 App::new()
@@ -108,25 +109,31 @@ async fn main() -> Result<()> {
 
             Ok(())
         }
-        Commands::Import { file_path } => {
+        Commands::Import { file_path, article_id } => {
             if !file_path.exists() {
                 bail!("You can not import non-existent file")
             }
 
             if !file_path.is_file() {
+                // TODO: /dev/stdin is not supported by this method
+                debug!("is_dir: {}", file_path.is_dir());
+                debug!("is_symlink: {}", file_path.is_symlink());
+                debug!("metadata: {:?}", file_path.metadata()?);
                 bail!("Non-file paths are not supported")
             }
 
-            let string = {
+            let content = {
                 let mut fd = BufReader::new(File::open(file_path)?);
                 let mut buf = vec![];
                 fd.read_to_end(&mut buf)?;
                 String::from_utf8(buf)
             };
 
-            match string {
-                Ok(string) => {
-                    crate::backend::repository::GLOBAL_FILE.create_entry()
+            match content {
+                Ok(content) => {
+                    GLOBAL_FILE.create_entry(&article_id, content).await?;
+                    info!("Successfully imported as {article_id}.");
+                    Ok(())
                 }
                 Err(err) => {
                     bail!("The file is not UTF-8: {err}\
@@ -138,5 +145,4 @@ async fn main() -> Result<()> {
             }
         }
     }
-
 }
