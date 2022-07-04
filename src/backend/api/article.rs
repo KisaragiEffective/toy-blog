@@ -7,7 +7,7 @@ use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::{DateTime, FixedOffset, TimeZone};
 use log::info;
 use once_cell::sync::Lazy;
-use crate::backend::persistence::{ArticleId, ArticleRepository};
+use crate::backend::persistence::{ArticleId, ArticleRepository, ListOperationScheme};
 use crate::extension::RespondPlainText;
 
 static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("article.json"));
@@ -171,7 +171,7 @@ pub async fn list() -> impl Responder {
     match GLOBAL_FILE.parse_file_as_json() {
         Ok(entries) => {
             HttpResponse::build(StatusCode::OK)
-                .json(entries)
+                .json(ListOperationScheme::from(entries))
         }
         Err(err) => {
             HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
