@@ -1,13 +1,15 @@
 [package]
 name = "toy-blog"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-cors = "0.6.1"
 actix-web = "4.1.0"
 actix-web-httpauth = "0.6.0"
+addr = { version = "0.15.3", features = ["serde"] }
 anyhow = "1.0.57"
 chrono = { version = "0.4.19", default-features = false, features = ["std", "clock", "libc", "time", "serde"] }
 clap = { version = "3.2.5", features = ["derive"] }

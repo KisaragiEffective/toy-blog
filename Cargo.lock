@@ -20,6 +20,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-cors"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "414360eed71ba2d5435b185ba43ecbe281dfab5df3898286d6b7be8074372c92"
+dependencies = [
+ "actix-utils",
+ "actix-web",
+ "derive_more",
+ "futures-util",
+ "log",
+ "once_cell",
+ "smallvec",
+]
+
+[[package]]
 name = "actix-http"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -194,6 +209,17 @@ dependencies = [
  "futures-core",
  "futures-util",
  "pin-project-lite",
+]
+
+[[package]]
+name = "addr"
+version = "0.15.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4299322d87d6ae73d3bd74918983e712acc3a1b73c880258eb5a0b45895e7b85"
+dependencies = [
+ "psl",
+ "psl-types",
+ "serde",
 ]
 
 [[package]]
@@ -896,6 +922,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "psl"
+version = "2.0.90"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e9c7d362659b525758d09e2a3ae965e371b347605e5fb2bc5bec5c2a1ecf41b"
+dependencies = [
+ "psl-types",
+]
+
+[[package]]
+name = "psl-types"
+version = "2.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8eda7c62d9ecaafdf8b62374c006de0adf61666ae96a96ba74a37134aa4e470"
+
+[[package]]
 name = "quote"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1182,10 +1223,12 @@ dependencies = [
 
 [[package]]
 name = "toy-blog"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
+ "actix-cors",
  "actix-web",
  "actix-web-httpauth",
+ "addr",
  "anyhow",
  "chrono",
  "clap",
