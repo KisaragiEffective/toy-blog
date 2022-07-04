@@ -144,8 +144,30 @@ impl ArticleRepository {
 
 #[derive(Serialize, Deserialize)]
 pub(in crate::backend) struct FileScheme {
-    // TODO: この形式で永続化されるのは好みではないが、実装の速度を優先して形式の調整は凍結する
     pub(in crate::backend) data: HashMap<ArticleId, Article>
+}
+
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub(in crate::backend) struct ListOperationScheme(Vec<FlatId<ArticleId, Article>>);
+
+impl From<FileScheme> for ListOperationScheme {
+    fn from(fs: FileScheme) -> Self {
+        Self(
+            fs.data.into_iter().map(|(k, v)| {
+                FlatId {
+                    id: k,
+                    entity: v
+                }
+            }).collect()
+        )
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Deserialize, Serialize)]
+struct FlatId<Id, Entity> {
+    id: Id,
+    #[serde(flatten)]
+    entity: Entity,
 }
 
 impl FileScheme {
@@ -156,7 +178,7 @@ impl FileScheme {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct Article {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
