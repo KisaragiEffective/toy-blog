@@ -14,6 +14,7 @@ use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
 use anyhow::{Result, Context as _};
 use fern::colors::ColoredLevelConfig;
 use crate::backend::api::article;
+use crate::backend::cors::{middleware_factory as cors_middleware_factory};
 
 fn setup_logger() -> Result<()> {
     let colors = ColoredLevelConfig::new();
@@ -62,6 +63,7 @@ async fn main() -> Result<()> {
                     .scope("article:write"),
             )
             .wrap(Logger::new(r#"%a(CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#))
+            .wrap(cors_middleware_factory())
     });
 
 
