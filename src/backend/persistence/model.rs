@@ -1,4 +1,6 @@
+use std::convert::Infallible;
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 use serde::{Serialize, Deserialize};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -13,5 +15,13 @@ impl ArticleId {
 impl Display for ArticleId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.0, f)
+    }
+}
+
+impl FromStr for ArticleId {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
     }
 }

@@ -6,18 +6,22 @@ mod extension;
 
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Read};
 use std::path::PathBuf;
+use std::string::FromUtf8Error;
 use actix_web::{App, HttpServer};
 use actix_web::middleware::Logger;
 
 use actix_web::web::{scope as prefixed_service};
 use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
-use anyhow::{Result, Context as _};
+use anyhow::{Result, Context as _, bail};
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use once_cell::sync::OnceCell;
 use crate::backend::api::article;
 use crate::backend::cors::{middleware_factory as cors_middleware_factory};
+use crate::backend::persistence::model::ArticleId;
 
 static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
 
@@ -32,6 +36,12 @@ enum Commands {
     Run {
         #[clap(long)]
         bearer_token: String,
+    },
+    Import {
+        #[clap(long)]
+        file_path: PathBuf,
+        #[clap(long)]
+        article_id: ArticleId,
     },
 }
 
@@ -97,6 +107,35 @@ async fn main() -> Result<()> {
                 .context("while running server")?;
 
             Ok(())
+        }
+        Commands::Import { file_path } => {
+            if !file_path.exists() {
+                bail!("You can not import non-existent file")
+            }
+
+            if !file_path.is_file() {
+                bail!("Non-file paths are not supported")
+            }
+
+            let string = {
+                let mut fd = BufReader::new(File::open(file_path)?);
+                let mut buf = vec![];
+                fd.read_to_end(&mut buf)?;
+                String::from_utf8(buf)
+            };
+
+            match string {
+                Ok(string) => {
+                    crate::backend::repository::GLOBAL_FILE.create_entry()
+                }
+                Err(err) => {
+                    bail!("The file is not UTF-8: {err}\
+                    Please review following list:\
+                    - The file is not binary\
+                    - The text is encoded with UTF-8\
+                    Especially, importing Shift-JIS texts are NOT supported.")
+                }
+            }
         }
     }
 
