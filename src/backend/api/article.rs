@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use crate::backend::persistence::{ArticleId, ArticleRepository, ListOperationScheme};
 use crate::extension::RespondPlainText;
 
-static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("article.json"));
+static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("data/article.json"));
 
 // TODO: らぎブログフロントエンド作りたいからCORSヘッダー設定してくれ - @yanorei32
 
