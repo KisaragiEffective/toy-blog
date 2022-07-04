@@ -1,3 +1,5 @@
+pub mod model;
+
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
@@ -7,7 +9,8 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Local};
 use log::{error, info};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use model::ArticleId;
 
 pub struct ArticleRepository {
     path: PathBuf,
@@ -183,19 +186,4 @@ pub struct Article {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
     pub content: String,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct ArticleId(String);
-
-impl ArticleId {
-    pub const fn new(s: String) -> Self {
-        Self(s)
-    }
-}
-
-impl Display for ArticleId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
 }
