@@ -1,17 +1,16 @@
 use actix_web::{HttpResponse, Responder};
-use actix_web::{get, post, put, delete};
+use actix_web::{delete, get, post, put};
 use actix_web::http::header::LAST_MODIFIED;
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::{DateTime, FixedOffset, TimeZone};
 use log::info;
-use once_cell::sync::Lazy;
-use crate::backend::persistence::{ArticleId, ArticleRepository, ListOperationScheme};
+use crate::backend::persistence::ListOperationScheme;
+use crate::backend::persistence::model::ArticleId;
+use crate::backend::repository::GLOBAL_FILE;
 use crate::extension::RespondPlainText;
 use crate::GIVEN_TOKEN;
-
-static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("data/article.json"));
 
 // TODO: らぎブログフロントエンド作りたいからCORSヘッダー設定してくれ - @yanorei32
 
