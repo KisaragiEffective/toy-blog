@@ -9,6 +9,7 @@ use log::info;
 use once_cell::sync::Lazy;
 use crate::backend::persistence::{ArticleId, ArticleRepository, ListOperationScheme};
 use crate::extension::RespondPlainText;
+use crate::GIVEN_TOKEN;
 
 static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::new("data/article.json"));
 
@@ -181,8 +182,7 @@ pub async fn list() -> impl Responder {
 }
 
 fn is_wrong_token(token: &str) -> bool {
-    // TODO: this is subject to change
-    let correct_token = "1234567890";
+    let correct_token = GIVEN_TOKEN.get().unwrap().as_str();
     correct_token != token
 }
 
