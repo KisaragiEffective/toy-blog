@@ -18,7 +18,7 @@ static GLOBAL_FILE: Lazy<ArticleRepository> = Lazy::new(|| ArticleRepository::ne
 #[allow(clippy::future_not_send)]
 pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
     let token = bearer.token();
-    if is_right_token(token) {
+    if is_wrong_token(token) {
         return unauthorized()
     }
 
@@ -93,7 +93,7 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
 pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
     let token = bearer.token();
 
-    if !is_right_token(token) {
+    if !is_wrong_token(token) {
         return unauthorized()
     }
 
@@ -136,7 +136,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
 pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
     let token = bearer.token();
-    if !is_right_token(token) {
+    if !is_wrong_token(token) {
         return unauthorized()
     }
 
@@ -180,10 +180,10 @@ pub async fn list() -> impl Responder {
     }
 }
 
-fn is_right_token(token: &str) -> bool {
+fn is_wrong_token(token: &str) -> bool {
     // TODO: this is subject to change
     let correct_token = "1234567890";
-    correct_token == token
+    correct_token != token
 }
 
 fn unauthorized() -> HttpResponse {
