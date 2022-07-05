@@ -13,22 +13,53 @@ use std::string::FromUtf8Error;
 use std::sync::{Arc, Mutex};
 use std::task::Context;
 use std::time::Duration;
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::path::PathBuf;
 use actix_web::{App, HttpServer};
 use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
 
 use actix_web::web::{BytesMut, scope as prefixed_service};
 use anyhow::{Result, Context as _, bail};
+use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
+use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
+use log::{debug, info};
+use once_cell::sync::OnceCell;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use futures_util::{TryFutureExt, TryStreamExt};
-use log::{debug, info};
 use mio::{Events, Poll};
 use telnet_codec::{TelnetCodec, TelnetEvent};
 use tokio_util::codec::Decoder;
 
 use crate::backend::api::article;
+use crate::backend::cors::{middleware_factory as cors_middleware_factory};
+use crate::backend::persistence::model::ArticleId;
+use crate::backend::repository::GLOBAL_FILE;
+
+static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
+
+#[derive(Parser)]
+struct Args {
+    #[clap(subcommand)]
+    subcommand: Commands
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Run {
+        #[clap(long)]
+        bearer_token: String,
+    },
+    Import {
+        #[clap(long)]
+        file_path: PathBuf,
+        #[clap(long)]
+        article_id: ArticleId,
+    },
+}
 
 fn setup_logger() -> Result<()> {
     let colors = ColoredLevelConfig::new();
@@ -52,28 +83,37 @@ fn setup_logger() -> Result<()> {
 #[actix_web::main]
 async fn main() -> Result<()> {
     setup_logger().unwrap_or_default();
+    let args: Args = Args::parse();
+    match args.subcommand {
+        Commands::Run { bearer_token } => {
+            GIVEN_TOKEN.set(bearer_token).unwrap();
 
-    let http_server = HttpServer::new(|| {
-        App::new()
-            .service(prefixed_service("/api")
-                .service(
-                    (
-                        prefixed_service("/article")
-                            .service(
-                                (
-                                    article::create,
-                                    article::fetch,
-                                    article::update,
-                                    article::remove,
-                                )
-                            ),
-                        article::list,
+            let http_server = HttpServer::new(|| {
+                App::new()
+                    .service(prefixed_service("/api")
+                        .service(
+                            (
+                                prefixed_service("/article")
+                                    .service(
+                                        (
+                                            article::create,
+                                            article::fetch,
+                                            article::update,
+                                            article::remove,
+                                        )
+                                    ),
+                                article::list,
+                            )
+                        )
                     )
-                )
-            )
-
-            .wrap(Logger::new(r#"%a(CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#))
-    });
+                    .app_data(
+                        BearerAuthConfig::default()
+                            .realm("Perform write operation")
+                            .scope("article:write"),
+                    )
+                    .wrap(Logger::new(r#"%a(CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#))
+                    .wrap(cors_middleware_factory())
+            });
 
     tokio::spawn({
         async fn prompt(stream: &mut TcpStream, addr: SocketAddr) {
@@ -233,10 +273,47 @@ async fn main() -> Result<()> {
     });
 
     http_server
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
-        .context("while running server")?;
+                .bind(("127.0.0.1", 8080))?
+                .run()
+                .await
+                .context("while running server")?;
 
-    Ok(())
+            Ok(())
+        }
+        Commands::Import { file_path, article_id } => {
+            if !file_path.exists() {
+                bail!("You can not import non-existent file")
+            }
+
+            if !file_path.is_file() {
+                // TODO: /dev/stdin is not supported by this method
+                debug!("is_dir: {}", file_path.is_dir());
+                debug!("is_symlink: {}", file_path.is_symlink());
+                debug!("metadata: {:?}", file_path.metadata()?);
+                bail!("Non-file paths are not supported")
+            }
+
+            let content = {
+                let mut fd = BufReader::new(File::open(file_path)?);
+                let mut buf = vec![];
+                fd.read_to_end(&mut buf)?;
+                String::from_utf8(buf)
+            };
+
+            match content {
+                Ok(content) => {
+                    GLOBAL_FILE.create_entry(&article_id, content).await?;
+                    info!("Successfully imported as {article_id}.");
+                    Ok(())
+                }
+                Err(err) => {
+                    bail!("The file is not UTF-8: {err}\
+                    Please review following list:\
+                    - The file is not binary\
+                    - The text is encoded with UTF-8\
+                    Especially, importing Shift-JIS texts are NOT supported.")
+                }
+            }
+        }
+    }
 }
