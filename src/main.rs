@@ -201,7 +201,14 @@ async fn main() -> Result<()> {
                                                         let x = ListOperationScheme::from(json);
                                                         for entry in x.0 {
                                                             let content = {
-                                                                let content = entry.entity.content;
+                                                                let content = format!(
+                                                                    "{}[END]",
+                                                                    // 改行はテーブルを崩す
+                                                                    entry.entity.content
+                                                                        .replace('\n', r"\n")
+                                                                        .replace('\r', r"\r")
+                                                                        .replace('\t', r"\t")
+                                                                );
                                                                 if content.len() >= 30 {
                                                                     format!("{}...", &content[0..30])
                                                                 } else {
