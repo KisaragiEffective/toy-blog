@@ -19,6 +19,35 @@ struct ConnectionState {
     prompt: bool,
 }
 
+async fn writeln_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
+    write_text_to_stream(stream, format!("{text}\r\n").as_str()).await;
+}
+
+async fn write_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
+    match stream.write_all(text.as_bytes()).await {
+        Ok(_) => {}
+        Err(e) => {
+            match e.kind() {
+                ErrorKind::BrokenPipe => {
+                    debug!("Connection is closed by remote client ({addr}). Closing pipe.", addr = stream.peer_addr().unwrap());
+                    // This will result in NotConnected, anyway ignores that
+                    stream.shutdown().await.unwrap_or_default();
+                }
+                // "rethrow"
+                _ => Err(e).unwrap()
+            }
+        }
+    };
+}
+
+fn get_state<T>(addr: SocketAddr, selector: impl FnOnce(&ConnectionState) -> T) -> T {
+    selector(CONNECTION_POOL.lock().unwrap().get(&addr).unwrap())
+}
+
+fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
+    update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap())
+}
+
 #[allow(clippy::too_many_lines, clippy::future_not_send)]
 pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
     let stream = Arc::new(Mutex::new(stream));
@@ -37,34 +66,6 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
     {
         // don't mutex lock live long
         CONNECTION_POOL.lock().unwrap().insert(addr, ConnectionState::default());
-    }
-    async fn writeln_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
-        write_text_to_stream(stream, format!("{text}\r\n").as_str()).await;
-    }
-
-    async fn write_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
-        match stream.write_all(text.as_bytes()).await {
-            Ok(_) => {}
-            Err(e) => {
-                match e.kind() {
-                    ErrorKind::BrokenPipe => {
-                        debug!("Connection is closed by remote client ({addr}). Closing pipe.", addr = stream.peer_addr().unwrap());
-                        // This will result in NotConnected, anyway ignores that
-                        stream.shutdown().await.unwrap_or_default();
-                    }
-                    // "rethrow"
-                    _ => Err(e).unwrap()
-                }
-            }
-        };
-    }
-
-    fn get_state<T>(addr: SocketAddr, selector: impl FnOnce(&ConnectionState) -> T) -> T {
-        selector(CONNECTION_POOL.lock().unwrap().get(&addr).unwrap())
-    }
-
-    fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
-        update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap())
     }
 
     let prompt = || async {
