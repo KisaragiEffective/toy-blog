@@ -251,24 +251,28 @@ async fn main() -> Result<()> {
                                         match command {
                                             "SET" => {
                                                 let vec = params.splitn(2, ' ').collect::<Vec<_>>();
-                                                let (name, value_opt) = (vec[0], vec.get(1));
-                                                match name {
-                                                    "INTERACTIVE" => {
-                                                        if let Some(value) = value_opt {
-                                                            if let Ok(state) = value.to_lowercase().parse() {
-                                                                update_state(addr, |a| {
-                                                                    a.prompt = state;
-                                                                });
+                                                let (name, value_opt) = (vec.get(0), vec.get(1));
+                                                if let Some(name) = name.copied() {
+                                                    match name {
+                                                        "INTERACTIVE" => {
+                                                            if let Some(value) = value_opt {
+                                                                if let Ok(state) = value.to_lowercase().parse() {
+                                                                    update_state(addr, |a| {
+                                                                        a.prompt = state;
+                                                                    });
+                                                                } else {
+                                                                    writeln_text_to_stream(&mut stream, "true or false is expected").await;
+                                                                }
                                                             } else {
-                                                                writeln_text_to_stream(&mut stream, "true or false is expected").await;
+                                                                writeln_text_to_stream(&mut stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
                                                             }
-                                                        } else {
-                                                            writeln_text_to_stream(&mut stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
+                                                        }
+                                                        _ => {
+                                                            writeln_text_to_stream(&mut stream, "unknown variable").await;
                                                         }
                                                     }
-                                                    _ => {
-                                                        writeln_text_to_stream(&mut stream, "unknown variable").await;
-                                                    }
+                                                } else {
+                                                    writeln_text_to_stream(&mut stream, format!("INTERACTIVE={}", get_state(addr, |a| a.prompt)).as_str()).await;
                                                 }
                                             }
                                             _ => {
