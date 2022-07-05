@@ -48,7 +48,7 @@ fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
     update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap())
 }
 
-#[allow(clippy::too_many_lines, clippy::future_not_send)]
+#[allow(clippy::too_many_lines, clippy::future_not_send, clippy::module_name_repetitions)]
 pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
     let stream = Arc::new(Mutex::new(stream));
     let get_stream = || {
