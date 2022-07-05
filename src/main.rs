@@ -129,6 +129,10 @@ async fn main() -> Result<()> {
                             debug!("ok");
                             r
                         };
+                        let unknown_command = || async {
+                            writeln_text_to_stream(&mut get_stream(), "Unknown command. Please type HELP to display help.").await;
+                        };
+
                         let addr = get_stream().peer_addr().context("get peer addr")?;
                         debug!("welcome, {}", &addr);
                         {
@@ -238,7 +242,7 @@ async fn main() -> Result<()> {
                                                 };
                                             }
                                             _ => {
-                                                writeln_text_to_stream(&mut stream, "Unknown command. Please type HELP to display help.").await;
+                                                unknown_command().await;
                                             }
                                         }
                                     },
@@ -268,7 +272,7 @@ async fn main() -> Result<()> {
                                                 }
                                             }
                                             _ => {
-                                                writeln_text_to_stream(&mut stream, "Unknown command. Please type HELP to display help.").await;
+                                                unknown_command().await;
                                             }
                                         }
                                     },
