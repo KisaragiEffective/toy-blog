@@ -19,6 +19,7 @@ struct ConnectionState {
     prompt: bool,
 }
 
+#[allow(unused_variables)] // false-positive on IntelliJ
 async fn writeln_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
     write_text_to_stream(stream, format!("{text}\r\n").as_str()).await;
 }
