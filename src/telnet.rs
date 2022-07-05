@@ -150,7 +150,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                 2 => {
                     let (command, params) = (parts[0].as_str(), parts[1].as_str());
                     match command {
-                        "SET" => {
+                        "VAR" => {
                             let vec = params.splitn(2, ' ').collect::<Vec<_>>();
                             let (name, value_opt) = (vec.get(0), vec.get(1));
                             if let Some(name) = name.copied() {
