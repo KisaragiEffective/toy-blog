@@ -79,7 +79,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
         debug!("process command");
 
         async move {
-            let mut stream = get_stream();
+            let stream = &mut get_stream();
             match parts.len() {
                 0 => {
                 },
@@ -87,11 +87,11 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                     let command = parts[0].as_str();
                     match command {
                         "HELP" => {
-                            writeln_text_to_stream(&mut stream, "TODO: show well documented help").await;
+                            writeln_text_to_stream(stream, "TODO: show well documented help").await;
                         }
                         "MOTD" => {
                             // FIXME: bug?
-                            writeln_text_to_stream(&mut stream, "\r\
+                            writeln_text_to_stream(stream, "\r\
                                             Please do not send 0x83 via telnet(1).\r\
                                             nc(1) is not affected by this.\r\
                                             NOTE: To see help, please type HELP to prompt.").await;
@@ -102,7 +102,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                         "LIST" => {
                             match GLOBAL_FILE.parse_file_as_json() {
                                 Ok(json) => {
-                                    writeln_text_to_stream(&mut stream, "|  ARTICLE ID  | CREATE  DATE | LAST  UPDATE |             CONTENT             |").await;
+                                    writeln_text_to_stream(stream, "|  ARTICLE ID  | CREATE  DATE | LAST  UPDATE |             CONTENT             |").await;
                                     let x = ListOperationScheme::from(json);
                                     for entry in x.0 {
                                         let content = {
@@ -134,11 +134,11 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                             updated_at = entry.entity.updated_at.format("%Y-%m-%d"),
                                         );
 
-                                        writeln_text_to_stream(&mut stream, line_to_send.as_str()).await;
+                                        writeln_text_to_stream(stream, line_to_send.as_str()).await;
                                     }
                                 }
                                 Err(err) => {
-                                    writeln_text_to_stream(&mut stream, format!("Could not get list: {err}").as_str()).await;
+                                    writeln_text_to_stream(stream, format!("Could not get list: {err}").as_str()).await;
                                 }
                             };
                         }
@@ -162,18 +162,18 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                                     a.prompt = state;
                                                 });
                                             } else {
-                                                writeln_text_to_stream(&mut stream, "true or false is expected").await;
+                                                writeln_text_to_stream(stream, "true or false is expected").await;
                                             }
                                         } else {
-                                            writeln_text_to_stream(&mut stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
+                                            writeln_text_to_stream(stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
                                         }
                                     }
                                     _ => {
-                                        writeln_text_to_stream(&mut stream, "unknown variable").await;
+                                        writeln_text_to_stream(stream, "unknown variable").await;
                                     }
                                 }
                             } else {
-                                writeln_text_to_stream(&mut stream, format!("INTERACTIVE={}", get_state(addr, |a| a.prompt)).as_str()).await;
+                                writeln_text_to_stream(stream, format!("INTERACTIVE={}", get_state(addr, |a| a.prompt)).as_str()).await;
                             }
                         }
                         _ => {
