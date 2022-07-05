@@ -130,7 +130,7 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub(in crate::backend) fn parse_file_as_json(&self) -> Result<FileScheme> {
+    pub fn parse_file_as_json(&self) -> Result<FileScheme> {
         let (file, _lock) = self.get_read_handle();
         let mut read_all = BufReader::new(file?);
         let mut buf = vec![];
@@ -146,12 +146,12 @@ impl ArticleRepository {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(in crate::backend) struct FileScheme {
+pub struct FileScheme {
     pub(in crate::backend) data: HashMap<ArticleId, Article>
 }
 
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub(in crate::backend) struct ListOperationScheme(Vec<FlatId<ArticleId, Article>>);
+pub struct ListOperationScheme(pub Vec<FlatId<ArticleId, Article>>);
 
 impl From<FileScheme> for ListOperationScheme {
     fn from(fs: FileScheme) -> Self {
@@ -167,10 +167,10 @@ impl From<FileScheme> for ListOperationScheme {
 }
 
 #[derive(Eq, PartialEq, Debug, Deserialize, Serialize)]
-struct FlatId<Id, Entity> {
-    id: Id,
+pub struct FlatId<Id, Entity> {
+    pub id: Id,
     #[serde(flatten)]
-    entity: Entity,
+    pub entity: Entity,
 }
 
 impl FileScheme {

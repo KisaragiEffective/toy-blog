@@ -6,13 +6,10 @@ mod extension;
 
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
+use std::collections::HashMap;
 use std::io::ErrorKind;
-use std::net::{IpAddr, SocketAddr};
-use std::ops::{Deref, DerefMut};
-use std::string::FromUtf8Error;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use std::task::Context;
-use std::time::Duration;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
@@ -26,19 +23,19 @@ use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
-use once_cell::sync::OnceCell;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use once_cell::sync::{Lazy, OnceCell};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use futures_util::{TryFutureExt, TryStreamExt};
-use mio::{Events, Poll};
 use telnet_codec::{TelnetCodec, TelnetEvent};
 use tokio_util::codec::Decoder;
 
 use crate::backend::api::article;
 use crate::backend::cors::{middleware_factory as cors_middleware_factory};
+use crate::backend::persistence::ListOperationScheme;
 use crate::backend::persistence::model::ArticleId;
 use crate::backend::repository::GLOBAL_FILE;
 
+static CONNECTION_POOL: Lazy<Arc<Mutex<HashMap<SocketAddr, ConnectionState>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
 
 #[derive(Parser)]
@@ -59,6 +56,11 @@ enum Commands {
         #[clap(long)]
         article_id: ArticleId,
     },
+}
+
+#[derive(Default)]
+struct ConnectionState {
+    prompt: bool,
 }
 
 fn setup_logger() -> Result<()> {
@@ -116,27 +118,6 @@ async fn main() -> Result<()> {
             });
 
     tokio::spawn({
-        async fn prompt(stream: &mut TcpStream, addr: SocketAddr) {
-            match stream.write_all(b"toy-blog telnet > ").await {
-                Ok(_) => {}
-                Err(e) => {
-                    match e.kind() {
-                        ErrorKind::BrokenPipe => {
-                            debug!("Connection is closed by remote client ({addr}). Closing pipe.");
-                            // This will result in NotConnected, anyway ignores that
-                            disconnect(stream).await.unwrap_or_default();
-                        }
-                        // "rethrow"
-                        _ => Err(e).unwrap()
-                    }
-                }
-            }
-        }
-
-        async fn disconnect(stream: &mut TcpStream) -> std::io::Result<()> {
-            stream.shutdown().await
-        }
-
         Server::build()
             .bind("echo", ("127.0.0.1", 23112), move || {
                 fn_service(move |stream: TcpStream| {
@@ -149,11 +130,46 @@ async fn main() -> Result<()> {
                             r
                         };
                         let addr = get_stream().peer_addr().context("get peer addr")?;
-                        debug!("welcome, {}", addr);
-                        get_stream().write_all(b"Welcome!\r\n").await.unwrap();
-                        get_stream().write_all(b"Don't use telnet(1)!\r\n").await.unwrap();
-                        let mut buf = Arc::new(Mutex::new(BytesMut::with_capacity(4096)));
-                        let mut size = 0;
+                        debug!("welcome, {}", &addr);
+                        {
+                            // don't mutex lock live long
+                            CONNECTION_POOL.lock().unwrap().insert(addr, ConnectionState::default());
+                        }
+                        async fn writeln_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
+                            write_text_to_stream(stream, format!("{text}\r\n").as_str()).await;
+                        }
+
+                        async fn write_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
+                            match stream.write_all(text.as_bytes()).await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    match e.kind() {
+                                        ErrorKind::BrokenPipe => {
+                                            debug!("Connection is closed by remote client ({addr}). Closing pipe.", addr = stream.peer_addr().unwrap());
+                                            // This will result in NotConnected, anyway ignores that
+                                            stream.shutdown().await.unwrap_or_default();
+                                        }
+                                        // "rethrow"
+                                        _ => Err(e).unwrap()
+                                    }
+                                }
+                            };
+                        }
+
+                        fn get_state<T>(addr: SocketAddr, selector: impl FnOnce(&ConnectionState) -> T) -> T {
+                            selector(CONNECTION_POOL.lock().unwrap().get(&addr).unwrap())
+                        }
+
+                        fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
+                            update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap())
+                        }
+
+                        let prompt = || async {
+                            if CONNECTION_POOL.lock().unwrap().get(&addr).unwrap().prompt {
+                                write_text_to_stream(&mut get_stream(), "toy-blog telnet> ").await;
+                            }
+                        };
+
                         let process_command = |parts: Vec<String>| {
                             debug!("process command");
 
@@ -166,20 +182,95 @@ async fn main() -> Result<()> {
                                         let command = parts[0].as_str();
                                         match command {
                                             "HELP" => {
-                                                stream.write_all(b"TODO: Well documented help").await.unwrap();
+                                                writeln_text_to_stream(&mut stream, "TODO: show well documented help").await;
+                                            }
+                                            "MOTD" => {
+                                                // FIXME: bug?
+                                                writeln_text_to_stream(&mut stream, "\r\
+                                                Please do not send 0x83 via telnet(1).\r\
+                                                nc(1) is not affected by this.\r\
+                                                NOTE: To see help, please type HELP to prompt.").await;
+                                            }
+                                            "DISCONNECT" => {
+                                                stream.shutdown().await.unwrap();
+                                            }
+                                            "LIST" => {
+                                                match GLOBAL_FILE.parse_file_as_json() {
+                                                    Ok(json) => {
+                                                        writeln_text_to_stream(&mut stream, "|  ARTICLE ID  | CREATE  DATE | LAST  UPDATE |             CONTENT             |").await;
+                                                        let x = ListOperationScheme::from(json);
+                                                        for entry in x.0 {
+                                                            let content = {
+                                                                let content = entry.entity.content;
+                                                                if content.len() >= 30 {
+                                                                    format!("{}...", &content[0..30])
+                                                                } else {
+                                                                    format!("{content:<33}")
+                                                                }
+                                                            };
+                                                            let article_id = {
+                                                                let article_id = entry.id.0;
+                                                                if article_id.len() >= 11 {
+                                                                    format!("{}...", &article_id[0..11])
+                                                                } else {
+                                                                    format!("{article_id:<14}")
+                                                                }
+                                                            };
+                                                            let line_to_send = format!(
+                                                                "|{article_id}|  {created_at}  |  {updated_at}  |{content}|",
+                                                                created_at = entry.entity.created_at.format("%Y-%m-%d"),
+                                                                updated_at = entry.entity.updated_at.format("%Y-%m-%d"),
+                                                            );
+
+                                                            writeln_text_to_stream(&mut stream, line_to_send.as_str()).await;
+                                                        }
+                                                    }
+                                                    Err(err) => {
+                                                        writeln_text_to_stream(&mut stream, format!("Could not get list: {err}").as_str()).await;
+                                                    }
+                                                };
                                             }
                                             _ => {
-                                                stream.write_all(b"Unknown command. Please type HELP to display help.").await.unwrap();
+                                                writeln_text_to_stream(&mut stream, "Unknown command. Please type HELP to display help.").await;
                                             }
                                         }
                                     },
                                     2 => {
                                         let (command, params) = (parts[0].as_str(), parts[1].as_str());
+                                        match command {
+                                            "SET" => {
+                                                let vec = params.splitn(2, ' ').collect::<Vec<_>>();
+                                                let (name, value_opt) = (vec[0], vec.get(1));
+                                                match name {
+                                                    "INTERACTIVE" => {
+                                                        if let Some(value) = value_opt {
+                                                            if let Ok(state) = value.to_lowercase().parse() {
+                                                                update_state(addr, |a| {
+                                                                    a.prompt = state;
+                                                                });
+                                                            } else {
+                                                                writeln_text_to_stream(&mut stream, "true or false is expected").await;
+                                                            }
+                                                        } else {
+                                                            writeln_text_to_stream(&mut stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
+                                                        }
+                                                    }
+                                                    _ => {
+                                                        writeln_text_to_stream(&mut stream, "unknown variable").await;
+                                                    }
+                                                }
+                                            }
+                                            _ => {
+                                                writeln_text_to_stream(&mut stream, "Unknown command. Please type HELP to display help.").await;
+                                            }
+                                        }
                                     },
                                     _ => unreachable!()
                                 }
                             }
                         };
+
+                        let buf = Arc::new(Mutex::new(BytesMut::with_capacity(4096)));
                         let try_process_current_buffer = || {
                             let mut cloned = buf.lock().unwrap();
                             let mut tc = TelnetCodec::new(8192);
@@ -239,9 +330,11 @@ async fn main() -> Result<()> {
                                 get_stream().write_all(s.as_bytes()).await.unwrap();
                             }
                         };
-                        'connection_loop: loop {
+
+                        loop {
                             debug!("read");
-                            output("toy blog> ").await;
+
+                            prompt().await;
 
                             match read_buf().await {
                                 // disconnected

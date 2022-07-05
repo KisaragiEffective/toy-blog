@@ -4,7 +4,7 @@ use std::str::FromStr;
 use serde::{Serialize, Deserialize};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct ArticleId(String);
+pub struct ArticleId(pub String);
 
 impl ArticleId {
     pub const fn new(s: String) -> Self {
