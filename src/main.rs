@@ -339,13 +339,6 @@ async fn main() -> Result<()> {
                             }
                         };
 
-                        let output = |s: &str| {
-                            let s = s.to_string().into_boxed_str();
-                            async move {
-                                get_stream().write_all(s.as_bytes()).await.unwrap();
-                            }
-                        };
-
                         loop {
                             debug!("read");
 
@@ -358,10 +351,6 @@ async fn main() -> Result<()> {
                                 // write bytes back to stream
                                 Ok(_bytes_read) => {
                                     debug!("data recv");
-                                    // get_stream().write_all(b"human readable: ").await.unwrap();
-                                    // get_stream().write_all(&buf.lock().unwrap()).await.unwrap();
-                                    // get_stream().write_all(format!("raw representation: {bytes:x?}\n", bytes = &buf.lock().unwrap()).as_bytes()).await.unwrap();
-                                    // get_stream().flush().await.unwrap();
                                     try_process_current_buffer().await;
                                     buf.lock().unwrap().clear();
                                 }
