@@ -24,3 +24,8 @@ pub fn ansi_foreground_full_colored(color: &impl ToAnsiColorSequence) -> String 
 pub const fn ansi_reset_sequence() -> &'static str {
     "\x1b[0m"
 }
+
+#[inline]
+pub const fn bar_color() -> impl ToAnsiColorSequence {
+    Rgb { r: 160, g: 160, b: 160 }
+}

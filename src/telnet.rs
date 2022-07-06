@@ -12,7 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 use crate::{GLOBAL_FILE, ListOperationScheme};
-use crate::telnet::ansi::{ansi_foreground_full_colored, ansi_reset_sequence, Rgb};
+use crate::telnet::ansi::{ansi_foreground_full_colored, ansi_reset_sequence, bar_color};
 use crate::telnet::response::unknown_command;
 use crate::telnet::state::{CONNECTION_POOL, ConnectionState, get_state, update_state};
 use crate::telnet::stream::{write_text_to_stream, writeln_text_to_stream};
@@ -26,7 +26,6 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
         debug!("ok");
         r
     };
-
 
     let addr = get_stream().peer_addr().context("get peer addr")?;
     debug!("welcome, {}", &addr);
@@ -69,11 +68,17 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                         "LIST" => {
                             match GLOBAL_FILE.parse_file_as_json() {
                                 Ok(json) => {
+                                    let separator_color = &bar_color();
+                                    let body_separator = format!(
+                                        "{color}+--------------+--------------+--------------+---------------------------------+{reset}",
+                                        color = ansi_foreground_full_colored(separator_color),
+                                        reset = ansi_reset_sequence(),
+                                    );
                                     let pipe = &{
                                         if get_state(addr, |a| a.colored) {
                                             format!(
                                                 "{color}{string}{reset}",
-                                                color = ansi_foreground_full_colored(&Rgb { r: 80, g: 80, b: 80}),
+                                                color = ansi_foreground_full_colored(separator_color),
                                                 string = '|',
                                                 reset = ansi_reset_sequence()
                                             )
@@ -81,7 +86,12 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                             "|".to_string()
                                         }
                                     };
-                                    writeln_text_to_stream(stream, "{pipe}  ARTICLE ID  {pipe} CREATE  DATE {pipe} LAST  UPDATE {pipe}             CONTENT             {pipe}").await;
+                                    writeln_text_to_stream(stream, body_separator.as_str()).await;
+                                    writeln_text_to_stream(
+                                        stream,
+                                        format!("{pipe}  ARTICLE ID  {pipe} CREATE  DATE {pipe} LAST  UPDATE {pipe}             CONTENT             {pipe}").as_str()
+                                    ).await;
+                                    writeln_text_to_stream(stream, body_separator.as_str()).await;
                                     let x = ListOperationScheme::from(json);
                                     for entry in x.0 {
                                         let content = {
@@ -115,6 +125,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
 
                                         writeln_text_to_stream(stream, line_to_send.as_str()).await;
                                     }
+                                    writeln_text_to_stream(stream, body_separator.as_str()).await;
                                 }
                                 Err(err) => {
                                     writeln_text_to_stream(stream, format!("Could not get list: {err}").as_str()).await;
@@ -180,6 +191,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
     };
 
     let buf = Arc::new(Mutex::new(BytesMut::with_capacity(4096)));
+
     let try_process_current_buffer = || {
         let mut cloned = buf.lock().unwrap();
         let mut tc = TelnetCodec::new(8192);
