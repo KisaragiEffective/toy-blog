@@ -60,6 +60,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                 // break = more bytes needed
                 match telnet_packet {
                     TelnetEvent::Negotiate(a, b) => {
+                        // DO
                         if a == 253 {
                             match b {
                                 6 => {
@@ -67,7 +68,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                     // but we do not sync due to rack of knowledge about Telnet
                                 }
                                 _ => {
-                                    debug!("negotiate: it is unknown option: {b}");
+                                    debug!("negotiate: it is unknown, or unimplemented option: {b}");
                                 }
                             }
                         }
