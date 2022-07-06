@@ -3,10 +3,12 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 #[allow(unused_variables)] // false-positive on IntelliJ
+#[allow(clippy::module_name_repetitions)]
 pub async fn writeln_text_to_stream<'a, 'b: 'a>(stream: &mut TcpStream, text: &'b str) {
     write_text_to_stream(stream, format!("{text}\r\n").as_str()).await;
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub async fn write_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
     match stream.write_all(text.as_bytes()).await {
         Ok(_) => {}
