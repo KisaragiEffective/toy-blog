@@ -22,5 +22,5 @@ pub fn ansi_foreground_full_colored(color: &impl ToAnsiColorSequence) -> String 
 
 #[inline]
 pub const fn ansi_reset_sequence() -> &'static str {
-    "\x1b[9m"
+    "\x1b[0m"
 }
