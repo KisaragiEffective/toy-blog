@@ -2,7 +2,8 @@ use std::net::{IpAddr, SocketAddr};
 use log::debug;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use crate::{GLOBAL_FILE, ListOperationScheme};
+use crate::{ArticleId, GLOBAL_FILE, ListOperationScheme};
+use crate::backend::persistence::Article;
 use crate::telnet::ansi::{ansi_foreground_full_colored, ansi_reset_sequence, bar_color};
 use crate::telnet::response::unknown_command;
 use crate::telnet::state::{get_state, update_state};
@@ -143,6 +144,30 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     } else {
                         writeln_text_to_stream(stream, format!("INTERACTIVE={}", get_state(addr, |a| a.prompt)).as_str()).await;
                         writeln_text_to_stream(stream, format!("COLORED={}", get_state(addr, |a| a.colored)).as_str()).await;
+                    }
+                }
+                "GET" => {
+                    let id = ArticleId(params.to_string());
+                    match GLOBAL_FILE.exists(&id).await {
+                        Ok(exists) => {
+                            if exists {
+                                let article = GLOBAL_FILE.read_snapshot(&id).await;
+                                if let Ok(article) = article {
+                                    let Article { created_at, updated_at, content } = article;
+                                    writeln_text_to_stream(stream, "article found:").await;
+                                    writeln_text_to_stream(stream, format!("created at {created_at}")).await;
+                                    writeln_text_to_stream(stream, format!("updated at {updated_at}")).await;
+                                    writeln_text_to_stream(stream, format!("content:\r\n{content}")).await;
+                                } else {
+                                    writeln_text_to_stream(stream, "could not fetch specified article").await;
+                                }
+                            } else {
+                                writeln_text_to_stream(stream, "article cloud not be found").await;
+                            }
+                        }
+                        Err(e) => {
+                            writeln_text_to_stream(stream, format!("Internal exception: {e}")).await;
+                        }
                     }
                 }
                 _ => {
