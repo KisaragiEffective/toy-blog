@@ -50,7 +50,11 @@ pub async fn write_text_to_stream(stream: &mut TcpStream, text: impl TelnetMessa
         Err(e) => {
             match e.kind() {
                 ErrorKind::BrokenPipe => {
-                    debug!("Connection is closed by remote client ({addr}). Closing pipe.", addr = stream.peer_addr().unwrap());
+                    if let Ok(addr) = stream.peer_addr() {
+                        debug!("Connection is closed by remote client ({addr}). Closing pipe.");
+                    } else {
+                        debug!("Connection is closed by remote client. Closing pipe.");
+                    }
                     // This will result in NotConnected, anyway ignores that
                     stream.shutdown().await.unwrap_or_default();
                 }
