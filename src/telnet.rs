@@ -56,10 +56,9 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                             writeln_text_to_stream(stream, "TODO: show well documented help").await;
                         }
                         "MOTD" => {
-                            // FIXME: bug?
-                            writeln_text_to_stream(stream, "\r\
-                                            Please do not send 0x83 via telnet(1).\r\
-                                            nc(1) is not affected by this.\r\
+                            writeln_text_to_stream(stream, "\
+                                            Please do not send 0x83 via telnet(1).\r\n\
+                                            nc(1) is not affected by this.\r\n\
                                             NOTE: To see help, please type HELP to prompt.").await;
                         }
                         "DISCONNECT" => {
