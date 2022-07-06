@@ -46,6 +46,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
 
         async move {
             let stream = &mut get_stream();
+            debug!("handle parts");
             match parts.len() {
                 0 => {
                 },
@@ -121,7 +122,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                             };
                         }
                         _ => {
-                            unknown_command().await;
+                            unknown_command(stream).await;
                         }
                     }
                 },
@@ -169,7 +170,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                             }
                         }
                         _ => {
-                            unknown_command().await;
+                            unknown_command(stream).await;
                         }
                     }
                 },
