@@ -81,7 +81,10 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                         match String::from_utf8(bytes.to_vec()) {
                             Ok(s) => {
                                 if let Some(s) = s.strip_suffix("\r\n") {
-                                    let parts = s.splitn(2, ' ').map(ToString::to_string).collect();
+                                    let parts = s.splitn(2, ' ')
+                                        .map(ToString::to_string)
+                                        .filter(|a| !a.is_empty())
+                                        .collect();
                                     process_command(parts).await;
                                 } else {
                                     debug!("incomplete text command, awaiting further bytes");
