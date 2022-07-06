@@ -99,7 +99,7 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     };
                 }
                 "VAR" => {
-                    writeln_text_to_stream(stream, format!("INTERACTIVE={}", get_state(addr, |a| a.prompt))).await;
+                    writeln_text_to_stream(stream, format!("PROMPT={}", get_state(addr, |a| a.prompt))).await;
                     writeln_text_to_stream(stream, format!("COLORED={}", get_state(addr, |a| a.colored))).await;
                 }
                 _ => {
@@ -114,7 +114,7 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     let vec = params.splitn(2, ' ').collect::<Vec<_>>();
                     let (name, value_opt) = (vec[0], vec.get(1));
                     match name {
-                        "INTERACTIVE" => {
+                        "PROMPT" => {
                             if let Some(value) = value_opt {
                                 if let Ok(state) = value.to_lowercase().parse() {
                                     update_state(addr, |a| {
@@ -137,7 +137,7 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                                     writeln_text_to_stream(stream, "TRUE or FALSE is expected").await;
                                 }
                             } else {
-                                writeln_text_to_stream(stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
+                                writeln_text_to_stream(stream, get_state(addr, |f| f.colored.to_string()).as_str()).await;
                             }
                         }
                         _ => {
