@@ -60,8 +60,18 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                 // break = more bytes needed
                 match telnet_packet {
                     TelnetEvent::Negotiate(a, b) => {
-                        debug!("negotiate, noun: {a}, option: {b}");
-                        continue
+                        if a == 253 {
+                            match b {
+                                6 => {
+                                    // explicit time sync (RFC 860)
+                                    // but we do not sync due to rack of knowledge about Telnet
+                                }
+                                _ => {
+                                    debug!("negotiate: it is unknown option: {b}");
+                                }
+                            }
+                        }
+                        break
                     },
                     TelnetEvent::SubNegotiate(a, bytes) => {
                         debug!("sub negotiate: {a}, {bytes:?}");
@@ -89,7 +99,10 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                     }
                     TelnetEvent::Command(code) => {
                         debug!("command: {code}");
-                        continue
+                        if code == 244 {
+                            debug!("ctrl-C was received");
+                        }
+                        break
                     }
                 }
             }
