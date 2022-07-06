@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use actix_web::web::BytesMut;
 use anyhow::{Result, Context as _, bail};
+use fern::colors::Color;
 use log::debug;
 use once_cell::sync::Lazy;
 use telnet_codec::{TelnetCodec, TelnetEvent};
@@ -17,6 +18,7 @@ static CONNECTION_POOL: Lazy<Arc<Mutex<HashMap<SocketAddr, ConnectionState>>>> =
 #[derive(Default)]
 struct ConnectionState {
     prompt: bool,
+    colored: bool,
 }
 
 #[allow(unused_variables)] // false-positive on IntelliJ
@@ -47,6 +49,33 @@ fn get_state<T>(addr: SocketAddr, selector: impl FnOnce(&ConnectionState) -> T) 
 
 fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
     update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap());
+}
+
+trait ToAnsiColorSequence {
+    fn to_ansi_color_sequence(&self) -> String;
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+struct Rgb {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+impl ToAnsiColorSequence for Rgb {
+    fn to_ansi_color_sequence(&self) -> String {
+        let Rgb {r, g, b} = &self;
+        format!("\x1b[38;2;{r};{g};{b}m")
+    }
+}
+
+fn ansi_foreground_full_colored(color: &impl ToAnsiColorSequence) -> String {
+    color.to_ansi_color_sequence()
+}
+
+#[inline]
+const fn ansi_reset_sequence() -> &'static str {
+    "\x1b[9m"
 }
 
 #[allow(clippy::too_many_lines, clippy::future_not_send, clippy::module_name_repetitions)]
@@ -102,7 +131,19 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                         "LIST" => {
                             match GLOBAL_FILE.parse_file_as_json() {
                                 Ok(json) => {
-                                    writeln_text_to_stream(stream, "|  ARTICLE ID  | CREATE  DATE | LAST  UPDATE |             CONTENT             |").await;
+                                    let pipe = &{
+                                        if get_state(addr, |a| a.colored) {
+                                            format!(
+                                                "{color}{string}{reset}",
+                                                color = ansi_foreground_full_colored(&Rgb { r: 80, g: 80, b: 80}),
+                                                string = '|',
+                                                reset = ansi_reset_sequence()
+                                            )
+                                        } else {
+                                            "|".to_string()
+                                        }
+                                    };
+                                    writeln_text_to_stream(stream, "{pipe}  ARTICLE ID  {pipe} CREATE  DATE {pipe} LAST  UPDATE {pipe}             CONTENT             {pipe}").await;
                                     let x = ListOperationScheme::from(json);
                                     for entry in x.0 {
                                         let content = {
@@ -129,7 +170,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                             }
                                         };
                                         let line_to_send = format!(
-                                            "|{article_id}|  {created_at}  |  {updated_at}  |{content}|",
+                                            "{pipe}{article_id}{pipe}  {created_at}  {pipe}  {updated_at}  {pipe}{content}{pipe}",
                                             created_at = entry.entity.created_at.format("%Y-%m-%d"),
                                             updated_at = entry.entity.updated_at.format("%Y-%m-%d"),
                                         );
@@ -162,7 +203,20 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                                     a.prompt = state;
                                                 });
                                             } else {
-                                                writeln_text_to_stream(stream, "true or false is expected").await;
+                                                writeln_text_to_stream(stream, "TRUE or FALSE is expected").await;
+                                            }
+                                        } else {
+                                            writeln_text_to_stream(stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
+                                        }
+                                    }
+                                    "COLOR" => {
+                                        if let Some(value) = value_opt {
+                                            if let Ok(state) = value.to_lowercase().parse() {
+                                                update_state(addr, |a| {
+                                                    a.colored = state;
+                                                });
+                                            } else {
+                                                writeln_text_to_stream(stream, "TRUE or FALSE is expected").await;
                                             }
                                         } else {
                                             writeln_text_to_stream(stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
@@ -174,6 +228,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
                                 }
                             } else {
                                 writeln_text_to_stream(stream, format!("INTERACTIVE={}", get_state(addr, |a| a.prompt)).as_str()).await;
+                                writeln_text_to_stream(stream, format!("COLORED={}", get_state(addr, |a| a.colored)).as_str()).await;
                             }
                         }
                         _ => {
