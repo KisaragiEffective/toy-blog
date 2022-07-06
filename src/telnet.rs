@@ -1,82 +1,21 @@
-use std::collections::HashMap;
-use std::io::ErrorKind;
-use std::net::SocketAddr;
+mod ansi;
+mod state;
+mod stream;
+mod response;
+
 use std::sync::{Arc, Mutex};
 use actix_web::web::BytesMut;
 use anyhow::{Result, Context as _, bail};
-use fern::colors::Color;
 use log::debug;
-use once_cell::sync::Lazy;
 use telnet_codec::{TelnetCodec, TelnetEvent};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 use crate::{GLOBAL_FILE, ListOperationScheme};
-
-static CONNECTION_POOL: Lazy<Arc<Mutex<HashMap<SocketAddr, ConnectionState>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
-
-#[derive(Default)]
-struct ConnectionState {
-    prompt: bool,
-    colored: bool,
-}
-
-#[allow(unused_variables)] // false-positive on IntelliJ
-async fn writeln_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
-    write_text_to_stream(stream, format!("{text}\r\n").as_str()).await;
-}
-
-async fn write_text_to_stream<'a, 'b: 'a>(stream: &'a mut TcpStream, text: &'b str) {
-    match stream.write_all(text.as_bytes()).await {
-        Ok(_) => {}
-        Err(e) => {
-            match e.kind() {
-                ErrorKind::BrokenPipe => {
-                    debug!("Connection is closed by remote client ({addr}). Closing pipe.", addr = stream.peer_addr().unwrap());
-                    // This will result in NotConnected, anyway ignores that
-                    stream.shutdown().await.unwrap_or_default();
-                }
-                // "rethrow"
-                _ => Err(e).unwrap()
-            }
-        }
-    };
-}
-
-fn get_state<T>(addr: SocketAddr, selector: impl FnOnce(&ConnectionState) -> T) -> T {
-    selector(CONNECTION_POOL.lock().unwrap().get(&addr).unwrap())
-}
-
-fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
-    update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap());
-}
-
-trait ToAnsiColorSequence {
-    fn to_ansi_color_sequence(&self) -> String;
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-struct Rgb {
-    r: u8,
-    g: u8,
-    b: u8,
-}
-
-impl ToAnsiColorSequence for Rgb {
-    fn to_ansi_color_sequence(&self) -> String {
-        let Rgb {r, g, b} = &self;
-        format!("\x1b[38;2;{r};{g};{b}m")
-    }
-}
-
-fn ansi_foreground_full_colored(color: &impl ToAnsiColorSequence) -> String {
-    color.to_ansi_color_sequence()
-}
-
-#[inline]
-const fn ansi_reset_sequence() -> &'static str {
-    "\x1b[9m"
-}
+use crate::telnet::ansi::{ansi_foreground_full_colored, ansi_reset_sequence, Rgb};
+use crate::telnet::response::unknown_command;
+use crate::telnet::state::{CONNECTION_POOL, ConnectionState, get_state, update_state};
+use crate::telnet::stream::{write_text_to_stream, writeln_text_to_stream};
 
 #[allow(clippy::too_many_lines, clippy::future_not_send, clippy::module_name_repetitions)]
 pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
@@ -87,9 +26,7 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
         debug!("ok");
         r
     };
-    let unknown_command = || async {
-        writeln_text_to_stream(&mut get_stream(), "Unknown command. Please type HELP to display help.").await;
-    };
+
 
     let addr = get_stream().peer_addr().context("get peer addr")?;
     debug!("welcome, {}", &addr);
