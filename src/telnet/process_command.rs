@@ -4,7 +4,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use crate::{ArticleId, GLOBAL_FILE, ListOperationScheme};
 use crate::backend::persistence::Article;
-use crate::telnet::ansi::{ansi_foreground_full_colored, ansi_reset_sequence, bar_color};
+use crate::telnet::ansi::{bar_color, generate_temporary_foreground_color};
 use crate::telnet::response::unknown_command;
 use crate::telnet::state::{get_state, update_state};
 use crate::telnet::stream::writeln_text_to_stream;
@@ -35,29 +35,28 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     match GLOBAL_FILE.parse_file_as_json() {
                         Ok(json) => {
                             let separator_color = &bar_color();
-                            let body_separator = format!(
-                                "{color}+--------------+--------------+--------------+---------------------------------+{reset}",
-                                color = ansi_foreground_full_colored(separator_color),
-                                reset = ansi_reset_sequence(),
-                            );
+                            let should_colorize = get_state(addr, |a| a.colored);
+                            let body_separator = &{
+                                let sep = "+--------------+--------------+--------------+---------------------------------+";
+                                if should_colorize {
+                                    generate_temporary_foreground_color(separator_color, sep)
+                                } else {
+                                    sep.to_string()
+                                }
+                            };
                             let pipe = &{
-                                if get_state(addr, |a| a.colored) {
-                                    format!(
-                                        "{color}{string}{reset}",
-                                        color = ansi_foreground_full_colored(separator_color),
-                                        string = '|',
-                                        reset = ansi_reset_sequence()
-                                    )
+                                if should_colorize {
+                                    generate_temporary_foreground_color(separator_color, '|')
                                 } else {
                                     "|".to_string()
                                 }
                             };
-                            writeln_text_to_stream(stream, body_separator.as_str()).await;
+                            writeln_text_to_stream(stream, body_separator).await;
                             writeln_text_to_stream(
                                 stream,
                                 format!("{pipe}  ARTICLE ID  {pipe} CREATE  DATE {pipe} LAST  UPDATE {pipe}             CONTENT             {pipe}").as_str()
                             ).await;
-                            writeln_text_to_stream(stream, body_separator.as_str()).await;
+                            writeln_text_to_stream(stream, body_separator).await;
                             let x = ListOperationScheme::from(json);
                             for entry in x.0 {
                                 let content = {
@@ -89,12 +88,12 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                                     updated_at = entry.entity.updated_at.format("%Y-%m-%d"),
                                 );
 
-                                writeln_text_to_stream(stream, line_to_send.as_str()).await;
+                                writeln_text_to_stream(stream, line_to_send).await;
                             }
-                            writeln_text_to_stream(stream, body_separator.as_str()).await;
+                            writeln_text_to_stream(stream, body_separator).await;
                         }
                         Err(err) => {
-                            writeln_text_to_stream(stream, format!("Could not get list: {err}").as_str()).await;
+                            writeln_text_to_stream(stream, format!("Could not get list: {err}")).await;
                         }
                     };
                 }

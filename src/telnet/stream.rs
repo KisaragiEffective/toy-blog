@@ -37,6 +37,13 @@ impl<T: TelnetMessageOutput, const N: usize> TelnetMessageOutput for [T; N] {
     }
 }
 
+impl<T: TelnetMessageOutput> TelnetMessageOutput for &T {
+    fn as_telnet_output(&self) -> String {
+        (*self).as_telnet_output()
+    }
+}
+
+
 #[allow(unused_variables)] // false-positive on IntelliJ
 #[allow(clippy::module_name_repetitions)]
 pub async fn writeln_text_to_stream<'a>(stream: &mut TcpStream, message: impl TelnetMessageOutput) {
