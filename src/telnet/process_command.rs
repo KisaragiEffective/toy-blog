@@ -1,4 +1,4 @@
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use log::debug;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
