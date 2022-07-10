@@ -43,6 +43,14 @@ enum Commands {
     Run {
         #[clap(long)]
         bearer_token: String,
+        #[clap(long)]
+        http_port: u16,
+        #[clap(long)]
+        http_host: String,
+        #[clap(long)]
+        telnet_port: u16,
+        #[clap(long)]
+        telnet_host: String,
     },
     Import {
         #[clap(long)]
@@ -76,7 +84,7 @@ async fn main() -> Result<()> {
     setup_logger().unwrap_or_default();
     let args: Args = Args::parse();
     match args.subcommand {
-        Commands::Run { bearer_token } => {
+        Commands::Run { bearer_token, http_port, http_host, telnet_port, telnet_host } => {
             GIVEN_TOKEN.set(bearer_token).unwrap();
 
             let http_server = HttpServer::new(|| {
@@ -108,7 +116,7 @@ async fn main() -> Result<()> {
 
         tokio::spawn({
             Server::build()
-                .bind("echo", ("127.0.0.1", 23112), move || {
+                .bind("echo", (telnet_host, telnet_port), move || {
                     fn_service(move |stream: TcpStream| {
                         telnet_server_service(stream)
                     })
@@ -117,7 +125,7 @@ async fn main() -> Result<()> {
         });
 
         http_server
-                    .bind(("127.0.0.1", 8080))?
+                    .bind((http_host, http_port))?
                     .run()
                     .await
                     .context("while running server")?;
