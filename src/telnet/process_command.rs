@@ -7,11 +7,11 @@ use crate::{ArticleId, GLOBAL_FILE, ListOperationScheme};
 use crate::backend::persistence::Article;
 use crate::telnet::ansi::{bar_color, generate_temporary_foreground_color, ToAnsiForegroundColorSequence};
 use crate::telnet::response::unknown_command;
-use crate::telnet::state::{get_state, update_state};
+use crate::telnet::state::CONNECTION_POOL;
 use crate::telnet::stream::writeln_text_to_stream;
 
 fn switch_color(addr: SocketAddr, base: impl Display, color: impl ToAnsiForegroundColorSequence) -> String {
-    if get_state(addr, |a| a.colored) {
+    if CONNECTION_POOL.get_and_pick(addr, |a| a.colored).unwrap() {
         generate_temporary_foreground_color(&color, base)
     } else {
         base.to_string()
@@ -44,7 +44,7 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     match GLOBAL_FILE.parse_file_as_json() {
                         Ok(json) => {
                             let separator_color = &bar_color();
-                            let should_colorize = get_state(addr, |a| a.colored);
+                            let should_colorize = CONNECTION_POOL.get_and_pick(addr, |a| a.colored).unwrap();
                             let body_separator = &{
                                 let sep = "+--------------+--------------+--------------+---------------------------------+";
                                 switch_color(addr, sep, separator_color)
@@ -97,8 +97,10 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     };
                 }
                 "VAR" => {
-                    writeln_text_to_stream(stream, format!("PROMPT={}", get_state(addr, |a| a.prompt))).await;
-                    writeln_text_to_stream(stream, format!("COLORED={}", get_state(addr, |a| a.colored))).await;
+                    let value = CONNECTION_POOL.get_and_pick(addr, |a| a.prompt).unwrap();
+                    writeln_text_to_stream(stream, format!("PROMPT={value}")).await;
+                    let value = CONNECTION_POOL.get_and_pick(addr, |a| a.colored).unwrap();
+                    writeln_text_to_stream(stream, format!("COLORED={value}")).await;
                 }
                 _ => {
                     unknown_command(stream).await;
@@ -115,27 +117,29 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                         "PROMPT" => {
                             if let Some(value) = value_opt {
                                 if let Ok(state) = value.to_lowercase().parse() {
-                                    update_state(addr, |a| {
+                                    CONNECTION_POOL.update_with(addr, |mut a| {
                                         a.prompt = state;
                                     });
                                 } else {
                                     writeln_text_to_stream(stream, "TRUE or FALSE is expected").await;
                                 }
                             } else {
-                                writeln_text_to_stream(stream, get_state(addr, |f| f.prompt.to_string()).as_str()).await;
+                                let message = CONNECTION_POOL.get_and_pick(addr, |ts| ts.prompt.to_string()).unwrap();
+                                writeln_text_to_stream(stream, message).await;
                             }
                         }
                         "COLOR" => {
                             if let Some(value) = value_opt {
                                 if let Ok(state) = value.to_lowercase().parse() {
-                                    update_state(addr, |a| {
+                                    CONNECTION_POOL.update_with(addr, |mut a| {
                                         a.colored = state;
                                     });
                                 } else {
                                     writeln_text_to_stream(stream, "TRUE or FALSE is expected").await;
                                 }
                             } else {
-                                writeln_text_to_stream(stream, get_state(addr, |f| f.colored.to_string()).as_str()).await;
+                                let message = CONNECTION_POOL.get_and_pick(addr, |ts| ts.colored).unwrap();
+                                writeln_text_to_stream(stream, message.to_string()).await;
                             }
                         }
                         _ => {

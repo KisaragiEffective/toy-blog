@@ -3,6 +3,7 @@ mod state;
 mod stream;
 mod response;
 mod process_command;
+mod repository;
 
 use std::sync::{Arc, Mutex};
 use actix_web::web::BytesMut;
@@ -13,7 +14,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 use crate::telnet::process_command::process_command;
-use crate::telnet::state::{CONNECTION_POOL, ConnectionState, update_state};
+use crate::telnet::state::{CONNECTION_POOL, TemporaryStatus};
 use crate::telnet::stream::{write_text_to_stream};
 
 #[allow(clippy::too_many_lines, clippy::future_not_send, clippy::module_name_repetitions)]
@@ -30,11 +31,11 @@ pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {
     debug!("welcome, {}", &addr);
     {
         // don't mutex lock live long
-        CONNECTION_POOL.lock().unwrap().insert(addr, ConnectionState::default());
+        CONNECTION_POOL.add(addr, TemporaryStatus::default());
     }
 
     let prompt = || async {
-        if CONNECTION_POOL.lock().unwrap().get(&addr).unwrap().prompt {
+        if CONNECTION_POOL.get_and_pick(addr, |ts| ts.prompt).unwrap() {
             write_text_to_stream(&mut get_stream(), "toy-blog telnet> ").await;
         }
     };

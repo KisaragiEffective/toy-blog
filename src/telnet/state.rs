@@ -1,23 +1,12 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
-use log::debug;
+use log::{debug, error};
 use once_cell::sync::Lazy;
+use crate::telnet::repository::ConnectionStatusRepository;
 
-pub static CONNECTION_POOL: Lazy<Arc<Mutex<HashMap<SocketAddr, ConnectionState>>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+pub static CONNECTION_POOL: Lazy<ConnectionStatusRepository> = Lazy::new(|| ConnectionStatusRepository::default());
 
-#[derive(Default)]
-pub struct ConnectionState {
+#[derive(Default, Copy, Clone)]
+pub struct TemporaryStatus {
     pub prompt: bool,
     pub colored: bool,
-}
-
-pub fn get_state<T>(addr: SocketAddr, selector: impl FnOnce(&ConnectionState) -> T) -> T {
-    debug!("get_state");
-    selector(CONNECTION_POOL.lock().unwrap().get(&addr).unwrap())
-}
-
-pub fn update_state(addr: SocketAddr, update: impl FnOnce(&mut ConnectionState)) {
-    debug!("update_state");
-    update(CONNECTION_POOL.lock().unwrap().get_mut(&addr).unwrap());
 }
