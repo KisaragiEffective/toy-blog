@@ -4,7 +4,12 @@
 
 ## How to run
 ```sh
-cargo run -- --bearer-token=INSERT_YOUR_OWN_TOKEN
+cargo run -- \
+  --bearer-token=INSERT_YOUR_OWN_TOKEN \
+  --http-host=127.0.0.1 \
+  --http-port=8080 \
+  --telnet-host=127.0.0.1 \
+  --telnet-port=12345
 ```
 
 ## 永続化
