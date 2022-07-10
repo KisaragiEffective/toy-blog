@@ -3,6 +3,7 @@
 
 mod backend;
 mod extension;
+mod telnet;
 
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
@@ -10,19 +11,24 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use actix_web::{App, HttpServer};
+use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
 
 use actix_web::web::{scope as prefixed_service};
-use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
 use anyhow::{Result, Context as _, bail};
+use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
 use once_cell::sync::OnceCell;
+use tokio::net::TcpStream;
+
 use crate::backend::api::article;
 use crate::backend::cors::{middleware_factory as cors_middleware_factory};
+use crate::backend::persistence::ListOperationScheme;
 use crate::backend::persistence::model::ArticleId;
 use crate::backend::repository::GLOBAL_FILE;
+use crate::telnet::telnet_server_service;
 
 static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
 
@@ -73,7 +79,7 @@ async fn main() -> Result<()> {
         Commands::Run { bearer_token } => {
             GIVEN_TOKEN.set(bearer_token).unwrap();
 
-            let server = HttpServer::new(|| {
+            let http_server = HttpServer::new(|| {
                 App::new()
                     .service(prefixed_service("/api")
                         .service(
@@ -100,15 +106,24 @@ async fn main() -> Result<()> {
                     .wrap(cors_middleware_factory())
             });
 
-
-            server
-                .bind(("127.0.0.1", 8080))?
+        tokio::spawn({
+            Server::build()
+                .bind("echo", ("127.0.0.1", 23112), move || {
+                    fn_service(move |stream: TcpStream| {
+                        telnet_server_service(stream)
+                    })
+                })?
                 .run()
-                .await
-                .context("while running server")?;
+        });
 
-            Ok(())
-        }
+        http_server
+                    .bind(("127.0.0.1", 8080))?
+                    .run()
+                    .await
+                    .context("while running server")?;
+
+                Ok(())
+            }
         Commands::Import { file_path, article_id } => {
             if !file_path.exists() {
                 bail!("You can not import non-existent file")
