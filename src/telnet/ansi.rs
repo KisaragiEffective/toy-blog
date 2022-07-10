@@ -4,6 +4,12 @@ pub trait ToAnsiForegroundColorSequence {
     fn to_foreground_color_ansi_sequence(&self) -> String;
 }
 
+impl <T: ToAnsiForegroundColorSequence> ToAnsiForegroundColorSequence for &T {
+    fn to_foreground_color_ansi_sequence(&self) -> String {
+        (*self).to_foreground_color_ansi_sequence()
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct Rgb {
     pub r: u8,
@@ -15,6 +21,25 @@ impl ToAnsiForegroundColorSequence for Rgb {
     fn to_foreground_color_ansi_sequence(&self) -> String {
         let Rgb {r, g, b} = &self;
         format!("\x1b[38;2;{r};{g};{b}m")
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[repr(u8)]
+pub enum BasicColor {
+    Black = 0,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White
+}
+
+impl ToAnsiForegroundColorSequence for BasicColor {
+    fn to_foreground_color_ansi_sequence(&self) -> String {
+        format!("\x1b[3{c}m", c = *self as u8)
     }
 }
 

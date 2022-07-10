@@ -1,13 +1,22 @@
+use std::fmt::Display;
 use std::net::SocketAddr;
 use log::debug;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use crate::{ArticleId, GLOBAL_FILE, ListOperationScheme};
 use crate::backend::persistence::Article;
-use crate::telnet::ansi::{bar_color, generate_temporary_foreground_color};
+use crate::telnet::ansi::{bar_color, generate_temporary_foreground_color, ToAnsiForegroundColorSequence};
 use crate::telnet::response::unknown_command;
 use crate::telnet::state::{get_state, update_state};
 use crate::telnet::stream::writeln_text_to_stream;
+
+fn switch_color(addr: SocketAddr, base: impl Display, color: impl ToAnsiForegroundColorSequence) -> String {
+    if get_state(addr, |a| a.colored) {
+        generate_temporary_foreground_color(&color, base)
+    } else {
+        base.to_string()
+    }
+}
 
 #[allow(clippy::too_many_lines)]
 pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut TcpStream) {
@@ -38,19 +47,9 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                             let should_colorize = get_state(addr, |a| a.colored);
                             let body_separator = &{
                                 let sep = "+--------------+--------------+--------------+---------------------------------+";
-                                if should_colorize {
-                                    generate_temporary_foreground_color(separator_color, sep)
-                                } else {
-                                    sep.to_string()
-                                }
+                                switch_color(addr, sep, separator_color)
                             };
-                            let pipe = &{
-                                if should_colorize {
-                                    generate_temporary_foreground_color(separator_color, '|')
-                                } else {
-                                    "|".to_string()
-                                }
-                            };
+                            let pipe = switch_color(addr, '|', separator_color);
                             writeln_text_to_stream(stream, body_separator).await;
                             writeln_text_to_stream(
                                 stream,
