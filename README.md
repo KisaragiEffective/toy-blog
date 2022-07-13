@@ -34,10 +34,10 @@ cargo run -- \
 実装上の注: `GET /article/{article_id}`の応答速度を向上させるためにmapを用いている。
 
 ### `cors_setting.json`
-CORSアクセスが許可されるドメインを記述する。
+CORSアクセスが許可されるプロトコル付きのFQDNを記述する。
 * `_: array`
    * element
-     * `_: string` - フルドメイン名。例えば、`my-frontend.example.com`
+     * `_: string` - プロトコル付きのFQDN。例えば、`https://my-frontend.example.com`
 
 ## API
 APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。
