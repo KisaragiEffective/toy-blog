@@ -1,7 +1,7 @@
 pub mod model;
 
 use std::collections::HashMap;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};

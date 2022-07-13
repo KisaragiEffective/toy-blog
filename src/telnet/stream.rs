@@ -45,12 +45,12 @@ impl<T: TelnetMessageOutput> TelnetMessageOutput for &T {
 
 
 #[allow(unused_variables)] // false-positive on IntelliJ
-#[allow(clippy::module_name_repetitions)]
+#[allow(clippy::module_name_repetitions, clippy::future_not_send)]
 pub async fn writeln_text_to_stream<'a>(stream: &mut TcpStream, message: impl TelnetMessageOutput) {
     write_text_to_stream(stream, format!("{message}\r\n", message = message.as_telnet_output())).await;
 }
 
-#[allow(clippy::module_name_repetitions)]
+#[allow(clippy::module_name_repetitions, clippy::future_not_send)]
 pub async fn write_text_to_stream(stream: &mut TcpStream, text: impl TelnetMessageOutput) {
     match stream.write_all(text.as_telnet_output().as_bytes()).await {
         Ok(_) => {}
