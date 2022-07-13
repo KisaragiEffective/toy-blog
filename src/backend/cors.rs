@@ -13,7 +13,7 @@ static CORS_ALLOWED_DOMAINS: Lazy<ParsedAllowOrigin> =
 
 type ParsedAllowOrigin = Vec<String>;
 
-fn load_allowed_origins<'a>() -> Result<ParsedAllowOrigin> {
+fn load_allowed_origins() -> Result<ParsedAllowOrigin> {
     let path = "data/cors_setting.json";
     if !PathBuf::from(path).exists() {
         File::create(path)?;
@@ -37,8 +37,7 @@ pub fn middleware_factory() -> Cors {
         .allowed_origin_fn(|origin_value, _| {
             CORS_ALLOWED_DOMAINS
                 .iter()
-                .find(|s| s.as_str() == origin_value.to_str().unwrap())
-                .is_some()
+                .any(|s| s.as_str() == origin_value.to_str().unwrap())
         })
         .allowed_headers([CONTENT_TYPE, AUTHORIZATION, ACCEPT, ACCEPT_LANGUAGE])
         .allowed_methods(["GET", "HEAD"])

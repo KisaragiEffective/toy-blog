@@ -26,6 +26,7 @@ impl ToAnsiForegroundColorSequence for Rgb {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u8)]
+#[allow(dead_code)]
 pub enum BasicColor {
     Black = 0,
     Red,

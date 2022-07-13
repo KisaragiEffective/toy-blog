@@ -44,7 +44,6 @@ pub async fn process_command(parts: Vec<String>, addr: SocketAddr, stream: &mut 
                     match GLOBAL_FILE.parse_file_as_json() {
                         Ok(json) => {
                             let separator_color = &bar_color();
-                            let should_colorize = CONNECTION_POOL.get_and_pick(addr, |a| a.colored).unwrap();
                             let body_separator = &{
                                 let sep = "+--------------+--------------+--------------+---------------------------------+";
                                 switch_color(addr, sep, separator_color)
