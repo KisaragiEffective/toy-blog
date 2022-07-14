@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use crate::telnet::state::TemporaryStatus;
+use crate::service::telnet::state::TemporaryStatus;
 
 #[derive(Default)]
 #[allow(clippy::module_name_repetitions)]

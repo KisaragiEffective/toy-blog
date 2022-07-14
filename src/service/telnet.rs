@@ -13,9 +13,9 @@ use telnet_codec::{TelnetCodec, TelnetEvent};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
-use crate::telnet::process_command::process_command;
-use crate::telnet::state::{CONNECTION_POOL, TemporaryStatus};
-use crate::telnet::stream::{write_text_to_stream};
+use self::process_command::process_command;
+use self::state::{CONNECTION_POOL, TemporaryStatus};
+use self::stream::{write_text_to_stream};
 
 #[allow(clippy::too_many_lines, clippy::future_not_send, clippy::module_name_repetitions)]
 pub async fn telnet_server_service(stream: TcpStream) -> Result<()> {

@@ -6,9 +6,9 @@ use actix_web::web::{Bytes, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::{DateTime, FixedOffset, TimeZone};
 use log::info;
-use crate::http::persistence::ListOperationScheme;
-use crate::http::persistence::model::ArticleId;
-use crate::http::repository::GLOBAL_FILE;
+use crate::service::http::persistence::ListOperationScheme;
+use crate::service::http::persistence::model::ArticleId;
+use crate::service::http::repository::GLOBAL_FILE;
 use crate::extension::RespondPlainText;
 use crate::GIVEN_TOKEN;
 
