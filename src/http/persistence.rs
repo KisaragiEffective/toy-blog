@@ -147,7 +147,7 @@ impl ArticleRepository {
 
 #[derive(Serialize, Deserialize)]
 pub struct FileScheme {
-    pub(in crate::backend) data: HashMap<ArticleId, Article>
+    pub(in crate::http) data: HashMap<ArticleId, Article>
 }
 
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]

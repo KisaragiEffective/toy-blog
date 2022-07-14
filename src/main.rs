@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-mod backend;
+mod http;
 mod extension;
 mod telnet;
 
@@ -23,11 +23,11 @@ use log::{debug, info};
 use once_cell::sync::OnceCell;
 use tokio::net::TcpStream;
 
-use crate::backend::api::article;
-use crate::backend::cors::{middleware_factory as cors_middleware_factory};
-use crate::backend::persistence::ListOperationScheme;
-use crate::backend::persistence::model::ArticleId;
-use crate::backend::repository::GLOBAL_FILE;
+use crate::http::api::article;
+use crate::http::cors::{middleware_factory as cors_middleware_factory};
+use crate::http::persistence::ListOperationScheme;
+use crate::http::persistence::model::ArticleId;
+use crate::http::repository::GLOBAL_FILE;
 use crate::telnet::telnet_server_service;
 
 static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
