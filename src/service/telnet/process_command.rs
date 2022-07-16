@@ -4,7 +4,7 @@ use log::debug;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use crate::{ArticleId, GLOBAL_FILE, ListOperationScheme};
-use crate::service::http::persistence::Article;
+use crate::service::persistence::Article;
 use crate::service::telnet::ansi::{bar_color, generate_temporary_foreground_color, ToAnsiForegroundColorSequence};
 use crate::service::telnet::response::unknown_command;
 use crate::service::telnet::state::CONNECTION_POOL;

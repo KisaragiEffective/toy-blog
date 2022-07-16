@@ -24,8 +24,8 @@ use tokio::net::TcpStream;
 
 use crate::service::http::api::article;
 use crate::service::http::cors::{middleware_factory as cors_middleware_factory};
-use crate::service::http::persistence::ListOperationScheme;
-use crate::service::http::persistence::model::ArticleId;
+use service::persistence::ListOperationScheme;
+use service::persistence::model::ArticleId;
 use crate::service::http::repository::GLOBAL_FILE;
 use crate::service::telnet::telnet_server_service;
 
