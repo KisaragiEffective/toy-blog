@@ -4,11 +4,11 @@ use log::debug;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use crate::{ArticleId, GLOBAL_FILE, ListOperationScheme};
-use crate::backend::persistence::Article;
-use crate::telnet::ansi::{bar_color, generate_temporary_foreground_color, ToAnsiForegroundColorSequence};
-use crate::telnet::response::unknown_command;
-use crate::telnet::state::CONNECTION_POOL;
-use crate::telnet::stream::writeln_text_to_stream;
+use crate::service::persistence::Article;
+use crate::service::telnet::ansi::{bar_color, generate_temporary_foreground_color, ToAnsiForegroundColorSequence};
+use crate::service::telnet::response::unknown_command;
+use crate::service::telnet::state::CONNECTION_POOL;
+use crate::service::telnet::stream::writeln_text_to_stream;
 
 fn switch_color(addr: SocketAddr, base: impl Display, color: impl ToAnsiForegroundColorSequence) -> String {
     if CONNECTION_POOL.get_and_pick(addr, |a| a.colored).unwrap() {

@@ -1,9 +1,8 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 
-mod backend;
 mod extension;
-mod telnet;
+mod service;
 
 // TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
 
@@ -23,12 +22,12 @@ use log::{debug, info};
 use once_cell::sync::OnceCell;
 use tokio::net::TcpStream;
 
-use crate::backend::api::article;
-use crate::backend::cors::{middleware_factory as cors_middleware_factory};
-use crate::backend::persistence::ListOperationScheme;
-use crate::backend::persistence::model::ArticleId;
-use crate::backend::repository::GLOBAL_FILE;
-use crate::telnet::telnet_server_service;
+use crate::service::http::api::article;
+use crate::service::http::cors::{middleware_factory as cors_middleware_factory};
+use service::persistence::ListOperationScheme;
+use service::persistence::model::ArticleId;
+use crate::service::http::repository::GLOBAL_FILE;
+use crate::service::telnet::telnet_server_service;
 
 static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
 
