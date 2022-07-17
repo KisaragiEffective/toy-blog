@@ -4,8 +4,6 @@
 mod extension;
 mod service;
 
-// TODO: telnetサポートしたら面白いんじゃね？ - @yanorei32
-
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;

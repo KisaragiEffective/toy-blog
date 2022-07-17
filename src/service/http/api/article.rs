@@ -12,8 +12,6 @@ use crate::service::http::repository::GLOBAL_FILE;
 use crate::extension::RespondPlainText;
 use crate::GIVEN_TOKEN;
 
-// TODO: らぎブログフロントエンド作りたいからCORSヘッダー設定してくれ - @yanorei32
-
 #[post("/{article_id}")]
 #[allow(clippy::future_not_send)]
 pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
