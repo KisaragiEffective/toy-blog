@@ -1,6 +1,6 @@
-use actix_web::{HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder};
 use actix_web::{delete, get, post, put};
-use actix_web::http::header::LAST_MODIFIED;
+use actix_web::http::header::{LAST_MODIFIED, USER_AGENT};
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
@@ -14,7 +14,7 @@ use crate::GIVEN_TOKEN;
 
 #[post("/{article_id}")]
 #[allow(clippy::future_not_send)]
-pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl Responder {
+pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request: HttpRequest) -> impl Responder {
     let token = bearer.token();
     if is_wrong_token(token) {
         return unauthorized()
@@ -30,11 +30,32 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
     let plain_text = String::from_utf8(data.to_vec());
     if let Ok(text) = plain_text {
         info!("valid utf8");
-        let res = GLOBAL_FILE.create_entry(&path, text).await;
+        let res = GLOBAL_FILE.create_entry(&path, text.clone()).await;
         match res {
             Ok(_) => {
+                let warnings = if let Some(user_agent) = request.headers().get(USER_AGENT) {
+                    if user_agent.to_str().unwrap().starts_with("curl/") && !text.contains('\n') {
+                        vec![
+                            r#"There's no newlines. Perhaps you should use --data-binary instead?
+Note: `man curl(1)` said:
+    > When -d, --data is told to read from a file like that, carriage
+    > returns and newlines  will  be stripped out."#
+                        ]
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                };
+
+                let warnings = warnings
+                    .into_iter()
+                    .map(|a| a.to_string() + "\n")
+                    .collect::<Vec<_>>()
+                    .join("");
+
                 HttpResponse::build(StatusCode::OK)
-                    .respond_with_auto_charset(format!("OK, saved as {path}.", path = &path))
+                    .respond_with_auto_charset(format!("{warnings}OK, saved as {path}.", path = &path))
             }
             Err(err) => {
                 HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
