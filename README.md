@@ -12,6 +12,8 @@ cargo run -- \
   --telnet-port=12345
 ```
 
+Cloudflareのトンネルを使っている場合、`--cloudflare`スイッチを付け足すこと。
+
 ## 永続化
 全てのデータはJSONで格納される。
 

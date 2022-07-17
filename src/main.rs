@@ -48,6 +48,8 @@ enum Commands {
         telnet_port: u16,
         #[clap(long)]
         telnet_host: String,
+        #[clap(long = "cloudflare")]
+        cloudflare_support: bool,
     },
     Import {
         #[clap(long)]
@@ -81,10 +83,16 @@ async fn main() -> Result<()> {
     setup_logger().unwrap_or_default();
     let args: Args = Args::parse();
     match args.subcommand {
-        Commands::Run { bearer_token, http_port, http_host, telnet_port, telnet_host } => {
+        Commands::Run { bearer_token, http_port, http_host, telnet_port, telnet_host, cloudflare_support } => {
             GIVEN_TOKEN.set(bearer_token).unwrap();
 
-            let http_server = HttpServer::new(|| {
+            let http_server = HttpServer::new(move || {
+                let logger_format = if cloudflare_support {
+                    r#"%a (CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#
+                } else {
+                    r#"%a %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#
+                };
+
                 App::new()
                     .service(prefixed_service("/api")
                         .service(
@@ -107,7 +115,7 @@ async fn main() -> Result<()> {
                             .realm("Perform write operation")
                             .scope("article:write"),
                     )
-                    .wrap(Logger::new(r#"%a(CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#))
+                    .wrap(Logger::new(logger_format))
                     .wrap(cors_middleware_factory())
             });
 
