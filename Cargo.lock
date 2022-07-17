@@ -1247,7 +1247,7 @@ dependencies = [
 
 [[package]]
 name = "toy-blog"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "actix-cors",
  "actix-web",
