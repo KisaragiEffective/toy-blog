@@ -9,7 +9,7 @@ use crate::{ArticleId, GLOBAL_FILE};
 use crate::service::http::auth::{is_wrong_token, unauthorized};
 
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
-struct KeyQuery {
+pub struct KeyQuery {
     from: ArticleId,
     to: ArticleId,
 }
