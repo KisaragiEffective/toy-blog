@@ -57,7 +57,7 @@ Note: `man curl(1)` said:
                     .collect::<Vec<_>>()
                     .join("");
 
-                HttpResponse::build(StatusCode::OK)
+                HttpResponse::build(StatusCode::CREATED)
                     .respond_with_auto_charset(format!("{warnings}OK, saved as {path}.", path = &path))
             }
             Err(err) => {

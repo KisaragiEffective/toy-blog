@@ -24,7 +24,7 @@ pub async fn change_id(query: Query<KeyQuery>, bearer: BearerAuth) -> impl Respo
     let KeyQuery { from, to } = query.into_inner();
     match GLOBAL_FILE.rename(&from, to) {
         Ok(_) => {
-            HttpResponse::build(StatusCode::OK)
+            HttpResponse::build(StatusCode::CREATED)
                 .respond_with_auto_charset("The article was successfully renamed")
         }
         Err(_) => {
@@ -33,4 +33,3 @@ pub async fn change_id(query: Query<KeyQuery>, bearer: BearerAuth) -> impl Respo
         }
     }
 }
-
