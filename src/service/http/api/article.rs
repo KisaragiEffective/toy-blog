@@ -1,11 +1,14 @@
+use std::cmp::Reverse;
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use actix_web::{delete, get, post, put};
 use actix_web::http::header::{LAST_MODIFIED, USER_AGENT};
 use actix_web::http::StatusCode;
-use actix_web::web::{Bytes, Path};
+use actix_web::web::{Bytes, Path, Query};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::{DateTime, FixedOffset, TimeZone};
 use log::info;
+use serde::Deserialize;
+use strum::EnumString;
 use crate::service::persistence::ListOperationScheme;
 use crate::service::persistence::model::ArticleId;
 use crate::service::http::repository::GLOBAL_FILE;
@@ -184,13 +187,42 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
     }
 }
 
+#[derive(EnumString, Deserialize, Copy, Clone, Eq, PartialEq)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case", tag = "sort")]
+pub enum SortPolicy {
+    Newest,
+    Oldest,
+    RecentUpdated,
+    LeastRecentlyUpdated,
+}
+
 #[get("/articles")]
 #[allow(clippy::unused_async)]
-pub async fn list() -> impl Responder {
+pub async fn list(query: Query<Option<SortPolicy>>) -> impl Responder {
     match GLOBAL_FILE.parse_file_as_json() {
         Ok(entries) => {
+            let mut json = ListOperationScheme::from(entries);
+            if let Some(sort_policy) = query.0 {
+                // そーっとソート
+                let v = &mut json.0;
+                match sort_policy {
+                    SortPolicy::Newest => {
+                        v.sort_by_key(|a| Reverse(a.entity.created_at))
+                    }
+                    SortPolicy::Oldest => {
+                        v.sort_by_key(|a| a.entity.created_at)
+                    }
+                    SortPolicy::RecentUpdated => {
+                        v.sort_by_key(|a| Reverse(a.entity.created_at))
+                    }
+                    SortPolicy::LeastRecentlyUpdated => {
+                        v.sort_by_key(|a| a.entity.created_at)
+                    }
+                }
+            }
             HttpResponse::build(StatusCode::OK)
-                .json(ListOperationScheme::from(entries))
+                .json(json)
         }
         Err(err) => {
             HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
