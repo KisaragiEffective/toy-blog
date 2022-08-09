@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Local};
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use model::ArticleId;
 
@@ -142,6 +142,22 @@ impl ArticleRepository {
             error!("{e}", e = &e);
             e
         }).context("reading json file")
+    }
+
+    pub fn rename(&self, old_id: &ArticleId, new_id: ArticleId) -> Result<()> {
+        debug!("rename");
+        let mut a = self.parse_file_as_json()?;
+        debug!("parsed");
+        let (file, _lock) = self.get_overwrite_handle();
+        let file = file?;
+
+        if let Some(data) = a.data.get(old_id) {
+            a.data.remove(old_id);
+            a.data.insert(new_id, data.clone());
+            Ok(())
+        } else {
+            bail!("persistent does not have entry with id = {old_id}")
+        }
     }
 }
 

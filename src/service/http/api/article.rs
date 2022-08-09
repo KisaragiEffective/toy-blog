@@ -10,7 +10,7 @@ use crate::service::persistence::ListOperationScheme;
 use crate::service::persistence::model::ArticleId;
 use crate::service::http::repository::GLOBAL_FILE;
 use crate::extension::RespondPlainText;
-use crate::GIVEN_TOKEN;
+use crate::service::http::auth::{is_wrong_token, unauthorized};
 
 #[post("/{article_id}")]
 #[allow(clippy::future_not_send)]
@@ -197,14 +197,4 @@ pub async fn list() -> impl Responder {
                 .respond_with_auto_charset(format!("Exception {err}"))
         }
     }
-}
-
-fn is_wrong_token(token: &str) -> bool {
-    let correct_token = GIVEN_TOKEN.get().unwrap().as_str();
-    correct_token != token
-}
-
-fn unauthorized() -> HttpResponse {
-    HttpResponse::build(StatusCode::UNAUTHORIZED)
-        .respond_with_auto_charset("You must be authorized to perform this action.")
 }

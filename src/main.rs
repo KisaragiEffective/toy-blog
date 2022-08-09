@@ -11,23 +11,21 @@ use actix_web::{App, HttpServer};
 use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
 
-use actix_web::web::{scope as prefixed_service};
-use anyhow::{Result, Context as _, bail};
-use actix_web_httpauth::extractors::bearer::{Config as BearerAuthConfig};
+use actix_web::web::scope as prefixed_service;
+use anyhow::{bail, Context as _, Result};
+use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
-use once_cell::sync::OnceCell;
 use tokio::net::TcpStream;
+use service::http::auth::WRITE_TOKEN;
 
-use crate::service::http::api::article;
-use crate::service::http::cors::{middleware_factory as cors_middleware_factory};
+use crate::service::http::api::{article, meta};
+use crate::service::http::cors::middleware_factory as cors_middleware_factory;
 use service::persistence::ListOperationScheme;
 use service::persistence::model::ArticleId;
 use crate::service::http::repository::GLOBAL_FILE;
 use crate::service::telnet::telnet_server_service;
-
-static GIVEN_TOKEN: OnceCell<String> = OnceCell::new();
 
 #[derive(Parser)]
 struct Args {
@@ -84,7 +82,7 @@ async fn main() -> Result<()> {
     let args: Args = Args::parse();
     match args.subcommand {
         Commands::Run { bearer_token, http_port, http_host, telnet_port, telnet_host, cloudflare_support } => {
-            GIVEN_TOKEN.set(bearer_token).unwrap();
+            WRITE_TOKEN.set(bearer_token).unwrap();
 
             let http_server = HttpServer::new(move || {
                 let logger_format = if cloudflare_support {
@@ -107,6 +105,8 @@ async fn main() -> Result<()> {
                                         )
                                     ),
                                 article::list,
+                                prefixed_service("/meta")
+                                    .service(meta::change_id)
                             )
                         )
                     )
