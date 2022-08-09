@@ -5,7 +5,7 @@ use actix_web::http::header::{LAST_MODIFIED, USER_AGENT};
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Path, Query};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use chrono::{DateTime, FixedOffset, TimeZone};
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 use log::info;
 use serde::Deserialize;
 use strum::EnumString;
@@ -73,9 +73,40 @@ Note: `man curl(1)` said:
 }
 
 fn fmt_http_date<Tz: TimeZone>(dt: &DateTime<Tz>) -> String {
-    let gmt_datetime = dt.with_timezone(&FixedOffset::east(0));
+    let gmt_datetime = dt.with_timezone(&Utc);
     // Last-Modified: <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
     gmt_datetime.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+    use crate::article::fmt_http_date;
+
+    #[test]
+    fn rfc7232_example() {
+        let dt = NaiveDateTime::new(
+            NaiveDate::from_ymd(1994, 11, 15),
+            NaiveTime::from_hms_opt(12, 45, 26).unwrap()
+        );
+
+        assert_eq!(
+            fmt_http_date(
+                &FixedOffset::east(0).from_utc_datetime(&dt)
+            ),
+            "Tue, 15 Nov 1994 12:45:26 GMT"
+        )
+    }
+
+    #[test]
+    fn rfc7232_example_jst() {
+        assert_eq!(
+            fmt_http_date(
+                &FixedOffset::east(9 * 3600).ymd(1994, 11, 15).and_hms(21, 45, 26)
+            ),
+            "Tue, 15 Nov 1994 12:45:26 GMT"
+        )
+    }
 }
 
 #[get("/{article_id}")]
