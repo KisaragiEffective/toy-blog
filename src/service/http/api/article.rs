@@ -73,7 +73,7 @@ Note: `man curl(1)` said:
 }
 
 fn fmt_http_date<Tz: TimeZone>(dt: &DateTime<Tz>) -> String {
-    let gmt_datetime = dt.with_timezone(&FixedOffset::east(0));
+    let gmt_datetime = dt.naive_utc();
     // Last-Modified: <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT
     gmt_datetime.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
 }
