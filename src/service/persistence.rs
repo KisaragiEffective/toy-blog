@@ -146,14 +146,15 @@ impl ArticleRepository {
 
     pub fn rename(&self, old_id: &ArticleId, new_id: ArticleId) -> Result<()> {
         debug!("rename");
-        let mut a = self.parse_file_as_json()?;
+        let mut repo = self.parse_file_as_json()?.data;
         debug!("parsed");
         let (file, _lock) = self.get_overwrite_handle();
-        let file = file?;
+        file?;
 
-        if let Some(data) = a.data.get(old_id) {
-            a.data.remove(old_id);
-            a.data.insert(new_id, data.clone());
+        if repo.get(old_id).is_some() {
+            repo.remove(old_id);
+            let data = repo.get(old_id).unwrap();
+            repo.insert(new_id, data.clone());
             Ok(())
         } else {
             bail!("persistent does not have entry with id = {old_id}")
