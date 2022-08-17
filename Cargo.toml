@@ -20,6 +20,6 @@ serde = { version = "1.0.143", features = ["derive"] }
 serde_json = "1.0.81"
 strum = { version = "0.24.1", features = ["derive"] }
 telnet-codec = "0.1.0"
-tokio = "1.19.2"
+tokio = "1.20.1"
 # for telnet-codec
 tokio-util = "0.6.10"
