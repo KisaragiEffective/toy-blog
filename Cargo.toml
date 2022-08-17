@@ -22,4 +22,4 @@ strum = { version = "0.24.1", features = ["derive"] }
 telnet-codec = "0.1.0"
 tokio = "1.19.2"
 # for telnet-codec
-tokio-util = "0.6.10"
+tokio-util = "0.7.3"
