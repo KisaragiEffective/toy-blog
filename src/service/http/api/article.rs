@@ -220,7 +220,7 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
 
 #[derive(EnumString, Deserialize, Copy, Clone, Eq, PartialEq)]
 #[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case", tag = "sort")]
+#[serde(rename_all = "snake_case")]
 pub enum SortPolicy {
     Newest,
     Oldest,
@@ -228,13 +228,19 @@ pub enum SortPolicy {
     LeastRecentlyUpdated,
 }
 
+#[derive(Deserialize, Copy, Clone, Eq, PartialEq)]
+pub struct SortQuery {
+    #[serde(rename = "sort")]
+    policy: Option<SortPolicy>,
+}
+
 #[get("/articles")]
 #[allow(clippy::unused_async)]
-pub async fn list(query: Query<Option<SortPolicy>>) -> impl Responder {
+pub async fn list(query: Query<SortQuery>) -> impl Responder {
     match GLOBAL_FILE.parse_file_as_json() {
         Ok(entries) => {
             let mut json = ListOperationScheme::from(entries);
-            if let Some(sort_policy) = query.0 {
+            if let Some(sort_policy) = query.policy {
                 // そーっとソート
                 let v = &mut json.0;
                 match sort_policy {
