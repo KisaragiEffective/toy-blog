@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Local};
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use serde::{Deserialize, Serialize};
 use model::ArticleId;
 
@@ -65,8 +65,9 @@ impl ArticleRepository {
             info!("modified");
         }
 
+        trace!("saving");
         serde_json::to_writer(file, &a)?;
-        info!("wrote");
+        trace!("saved");
         Ok(())
     }
 
@@ -136,7 +137,8 @@ impl ArticleRepository {
         let mut buf = vec![];
         read_all.read_to_end(&mut buf).context("verify file")?;
         let got = String::from_utf8(buf).context("utf8 verify")?;
-        info!("file JSON: {got}", got = &got);
+        debug!("parsed");
+        trace!("got: {got}", got = &got);
 
         serde_json::from_str(got.as_str()).map_err(|e| {
             error!("{e}", e = &e);
