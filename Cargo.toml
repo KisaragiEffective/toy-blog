@@ -9,7 +9,7 @@ edition = "2021"
 actix-cors = "0.6.2"
 actix-web = "4.1.0"
 actix-web-httpauth = "0.8.0"
-addr = { version = "0.15.4", features = ["serde"] }
+addr = { version = "0.15.6", features = ["serde"] }
 anyhow = "1.0.64"
 chrono = { version = "0.4.22", default-features = false, features = ["std", "clock", "libc", "time", "serde"] }
 clap = { version = "3.2.20", features = ["derive"] }
