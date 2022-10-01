@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 actix-cors = "0.6.2"
-actix-web = "4.1.0"
+actix-web = "4.2.1"
 actix-web-httpauth = "0.8.0"
 addr = { version = "0.15.6", features = ["serde"] }
 anyhow = "1.0.64"
