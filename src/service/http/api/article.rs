@@ -251,10 +251,10 @@ pub async fn list(query: Query<SortQuery>) -> impl Responder {
                         v.sort_by_key(|a| a.entity.created_at)
                     }
                     SortPolicy::RecentUpdated => {
-                        v.sort_by_key(|a| Reverse(a.entity.created_at))
+                        v.sort_by_key(|a| Reverse(a.entity.updated_at))
                     }
                     SortPolicy::LeastRecentlyUpdated => {
-                        v.sort_by_key(|a| a.entity.created_at)
+                        v.sort_by_key(|a| a.entity.updated_at)
                     }
                 }
             }
