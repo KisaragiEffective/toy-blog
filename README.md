@@ -5,62 +5,77 @@
 ## How to run
 ```sh
 cargo run -- \
-  --bearer-token=INSERT_YOUR_OWN_TOKEN \
+  --bearer-token=INSERT_YOUR_OWN_PASSWORD \
   --http-host=127.0.0.1 \
   --http-port=8080 \
   --telnet-host=127.0.0.1 \
   --telnet-port=12345
 ```
 
-Cloudflareのトンネルを使っている場合、`--cloudflare`スイッチを付け足すこと。
+### 解説
+* `--bearer-token`: 記事を更新するときのパスワードを設定する。このパスワードは使い回さないこと。このパスワードは永続化されないので、起動するたびに入力する必要がある。
+* `--http-host`: HTTPサーバーのホスト。通常は`127.0.0.1`を指定して良い。
+* `--http-port`: HTTPサーバーのポート番号。
+* `--telnet-host`: telnetサーバーのホスト。通常は`127.0.0.1`を指定して良い。
+* `--telnet-port`: telnetサーバーのポート番号。
+
+### 動作させるにあたっての注意事項
+* Cloudflareのトンネルを使っている場合、`--cloudflare`スイッチを付け足すこと。
 
 ## 永続化
-全てのデータはJSONで格納される。
+全てのデータはJSONで永続化される。
 
-データは`data/`ディレクトリ以下に保存される。
+データはカレントディレクトリ直下の`data/`ディレクトリ以下に保存される。
 
 ### ディレクトリ構造
-* `data/`
-  * `articles.json`
-  * `cors_setting.json`
+* カレントディレクトリ
+  * `data`
+    * `articles.json`
+    * `cors_setting.json`
 
 ### `articles.json`
 記事のデータを格納する。
-* `data: map`
-  * key: 記事ID
-  * value
-    * `created_at: date`: 作成日時
-    * `updated_at: date`: 更新日時
-    * `content: string` : 記事の本文
+* `data`
+  * (map)
+    * key: 記事ID
+    * value
+      * `created_at: date`: 作成日時
+      * `updated_at: date`: 更新日時
+      * `content: string` : 記事の本文
 
 実装上の注: `GET /article/{article_id}`の応答速度を向上させるためにmapを用いている。
 
 ### `cors_setting.json`
 CORSアクセスが許可されるプロトコル付きのFQDNを記述する。
-* `_: array`
-   * element
-     * `_: string` - プロトコル付きのFQDN。例えば、`https://my-frontend.example.com`
+* (array)
+  * `protocol_and_fqdn: string` - プロトコル付きのFQDN。例えば、`https://my-frontend.example.com`
 
 ## API
-APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。
+APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。HTTPSには対応していない。
 
 ### `GET /articles`
 現在登録されている記事を配列形式で全て返す。
 
 #### レスポンス
-* `200`: 指定された記事が見つかった。本文はJSONである。
+* `200`: 指定された記事が見つかった。`Content-Type`は`application/json`である。
 * `500`: バックエンド側で予期せぬ例外が起きた。
 
 ### `GET /article/{article_id}`
 記事を返す。
 
 #### レスポンス
-* `200`: 指定された記事が見つかった。本文はプレーン・テキストである。
+* `200`: 指定された記事が見つかった。本文は`text/plain`である。
 * `404`: 指定された記事が見つからなかった。
 * `500`: バックエンド側で予期せぬ例外が起きた。
 
 ### `POST /article/{article_id}`
 記事を作成する。
+
+#### ボディ
+* 記事の本文
+
+#### ヘッダー
+* `Content-Type: text/plain`
 
 #### レスポンス
 * `200`: OK。指定された記事は作成された。
