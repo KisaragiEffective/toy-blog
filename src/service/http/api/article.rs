@@ -1,7 +1,7 @@
 use std::cmp::Reverse;
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use actix_web::{delete, get, post, put};
-use actix_web::http::header::{LAST_MODIFIED, USER_AGENT};
+use actix_web::http::header::{LAST_MODIFIED, USER_AGENT, WARNING};
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Path, Query};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
@@ -259,6 +259,7 @@ pub async fn list(query: Query<SortQuery>) -> impl Responder {
                 }
             }
             HttpResponse::build(StatusCode::OK)
+                .insert_header((WARNING, "This endpoint will be removed in future major release"))
                 .json(json)
         }
         Err(err) => {
