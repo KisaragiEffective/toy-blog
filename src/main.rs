@@ -5,8 +5,9 @@ mod extension;
 mod service;
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, stdin};
 use std::path::PathBuf;
+use std::process::exit;
 use actix_web::{App, HttpServer};
 use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
@@ -36,8 +37,9 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     Run {
+        /// DEPRECATED
         #[clap(long)]
-        bearer_token: String,
+        bearer_token: Option<String>,
         #[clap(long)]
         http_port: u16,
         #[clap(long)]
@@ -48,6 +50,8 @@ enum Commands {
         telnet_host: String,
         #[clap(long = "cloudflare")]
         cloudflare_support: bool,
+        #[clap(long)]
+        read_bearer_token_from_stdin: bool,
     },
     Import {
         #[clap(long)]
@@ -81,7 +85,27 @@ async fn main() -> Result<()> {
     setup_logger().unwrap_or_default();
     let args: Args = Args::parse();
     match args.subcommand {
-        Commands::Run { bearer_token, http_port, http_host, telnet_port, telnet_host, cloudflare_support } => {
+        Commands::Run {
+            bearer_token,
+            http_port,
+            http_host,
+            telnet_port,
+            telnet_host,
+            cloudflare_support,
+            read_bearer_token_from_stdin
+        } => {
+            let bearer_token = bearer_token.map_or_else(|| if read_bearer_token_from_stdin {
+                let mut buf = String::new();
+                stdin().read_line(&mut buf).expect("failed to read from stdin");
+                buf.trim_end().to_string()
+            } else {
+                eprintln!("You must set bearer token to protecting your server.");
+                exit(1)
+            }, |token| {
+                eprintln!("--bearer-token is unsecure. It will be removed by next major release. Please use --read-bearer-token-from-stdin.");
+                token
+            });
+
             WRITE_TOKEN.set(bearer_token).unwrap();
 
             let http_server = HttpServer::new(move || {
