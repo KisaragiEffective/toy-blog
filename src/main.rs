@@ -37,9 +37,6 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     Run {
-        /// DEPRECATED
-        #[clap(long)]
-        bearer_token: Option<String>,
         #[clap(long)]
         http_port: u16,
         #[clap(long)]
@@ -50,6 +47,7 @@ enum Commands {
         telnet_host: String,
         #[clap(long = "cloudflare")]
         cloudflare_support: bool,
+        /// DEPRECATED, It will be removed in next major version. This switch is no-op.
         #[clap(long)]
         read_bearer_token_from_stdin: bool,
     },
@@ -86,7 +84,6 @@ async fn main() -> Result<()> {
     let args: Args = Args::parse();
     match args.subcommand {
         Commands::Run {
-            bearer_token,
             http_port,
             http_host,
             telnet_port,
@@ -94,17 +91,11 @@ async fn main() -> Result<()> {
             cloudflare_support,
             read_bearer_token_from_stdin
         } => {
-            let bearer_token = bearer_token.map_or_else(|| if read_bearer_token_from_stdin {
+            let bearer_token = {
                 let mut buf = String::new();
                 stdin().read_line(&mut buf).expect("failed to read from stdin");
                 buf.trim_end().to_string()
-            } else {
-                eprintln!("You must set bearer token to protecting your server.");
-                exit(1)
-            }, |token| {
-                eprintln!("--bearer-token is unsecure. It will be removed by next major release. Please use --read-bearer-token-from-stdin.");
-                token
-            });
+            };
 
             WRITE_TOKEN.set(bearer_token).unwrap();
 
