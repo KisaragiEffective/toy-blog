@@ -7,9 +7,7 @@ mod service;
 use std::fs::File;
 use std::io::{BufReader, Read, stdin};
 use std::path::PathBuf;
-use std::process::exit;
 use actix_web::{App, HttpServer};
-use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
 
 use actix_web::web::scope as prefixed_service;
@@ -18,15 +16,12 @@ use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
-use tokio::net::TcpStream;
 use service::http::auth::WRITE_TOKEN;
 
 use crate::service::http::api::{article, meta};
 use crate::service::http::cors::middleware_factory as cors_middleware_factory;
-use service::persistence::ListOperationScheme;
-use service::persistence::model::ArticleId;
+use toy_blog_endpoint_model::ArticleId;
 use crate::service::http::repository::GLOBAL_FILE;
-use crate::service::telnet::telnet_server_service;
 
 #[derive(Parser)]
 struct Args {
@@ -41,10 +36,6 @@ enum Commands {
         http_port: u16,
         #[clap(long)]
         http_host: String,
-        #[clap(long)]
-        telnet_port: u16,
-        #[clap(long)]
-        telnet_host: String,
         #[clap(long = "cloudflare")]
         cloudflare_support: bool,
         /// DEPRECATED, It will be removed in next major version. This switch is no-op.
@@ -86,8 +77,6 @@ async fn main() -> Result<()> {
         Commands::Run {
             http_port,
             http_host,
-            telnet_port,
-            telnet_host,
             cloudflare_support,
             read_bearer_token_from_stdin
         } => {
@@ -133,16 +122,6 @@ async fn main() -> Result<()> {
                     .wrap(Logger::new(logger_format))
                     .wrap(cors_middleware_factory())
             });
-
-        tokio::spawn({
-            Server::build()
-                .bind("echo", (telnet_host, telnet_port), move || {
-                    fn_service(move |stream: TcpStream| {
-                        telnet_server_service(stream)
-                    })
-                })?
-                .run()
-        });
 
         http_server
                     .bind((http_host, http_port))?

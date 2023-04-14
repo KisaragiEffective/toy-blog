@@ -1,16 +1,15 @@
-pub mod model;
-
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use std::string::FromUtf8Error;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use anyhow::{bail, Context, Result};
-use chrono::{DateTime, Local};
+use chrono::Local;
 use log::{debug, error, info, trace};
 use serde::{Deserialize, Serialize};
-use model::ArticleId;
+use thiserror::Error;
+use toy_blog_endpoint_model::{ArticleId, FlatId, ListArticleResponse};
 
 pub struct ArticleRepository {
     path: PathBuf,
@@ -39,15 +38,15 @@ impl ArticleRepository {
         }
     }
 
-    fn get_overwrite_handle(&self) -> (Result<File>, RwLockWriteGuard<'_, ()>) {
-        (File::options().write(true).truncate(true).open(&self.path).context("open file"), self.lock.write().unwrap())
+    fn get_overwrite_handle(&self) -> (std::io::Result<File>, RwLockWriteGuard<'_, ()>) {
+        (File::options().write(true).truncate(true).open(&self.path), self.lock.write().unwrap())
     }
 
-    fn get_read_handle(&self) -> (Result<File>, RwLockReadGuard<'_, ()>) {
-        (File::options().read(true).open(&self.path).context("open file"), self.lock.read().unwrap())
+    fn get_read_handle(&self) -> (std::io::Result<File>, RwLockReadGuard<'_, ()>) {
+        (File::options().read(true).open(&self.path), self.lock.read().unwrap())
     }
 
-    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
+    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
@@ -71,7 +70,7 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub async fn update_entry(&self, article_id: &ArticleId, article_content: String) -> Result<()> {
+    pub async fn update_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
         info!("calling add_entry");
         let mut fs = self.parse_file_as_json()?;
         info!("parsed");
@@ -82,7 +81,7 @@ impl ArticleRepository {
             let current_date = Local::now();
             match (&mut fs.data).get_mut(article_id) {
                 None => {
-                    bail!("article must be exists")
+                    return Err(PersistenceError::AbsentValue)
                 }
                 Some(article) => {
                     article.updated_at = current_date;
@@ -97,19 +96,24 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub async fn read_snapshot(&self, article_id: &ArticleId) -> Result<Article> {
+    pub async fn read_snapshot(&self, article_id: &ArticleId) -> Result<Article, PersistenceError> {
         info!("calling read");
         let a = self.parse_file_as_json()?;
-        a.data.get(article_id).cloned().context(format!("read_snapshot: failed to get {article_id:?}"))
+        let q = a.data.get(article_id).cloned();
+        if let Some(x) = q {
+            Ok(x)
+        } else {
+            Err(PersistenceError::AbsentValue)
+        }
     }
 
-    pub async fn exists(&self, article_id: &ArticleId) -> Result<bool> {
+    pub async fn exists(&self, article_id: &ArticleId) -> Result<bool, PersistenceError> {
         info!("calling exists");
         let a = self.parse_file_as_json()?;
         Ok(a.data.contains_key(article_id))
     }
 
-    pub async fn remove(&self, article_id: &ArticleId) -> Result<()> {
+    pub async fn remove(&self, article_id: &ArticleId) -> Result<(), PersistenceError> {
         info!("calling remove");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
@@ -131,27 +135,28 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub fn parse_file_as_json(&self) -> Result<FileScheme> {
+    pub fn parse_file_as_json(&self) -> Result<FileScheme, PersistenceError> {
         let (file, _lock) = self.get_read_handle();
         let mut read_all = BufReader::new(file?);
         let mut buf = vec![];
-        read_all.read_to_end(&mut buf).context("verify file")?;
-        let got = String::from_utf8(buf).context("utf8 verify")?;
+        read_all.read_to_end(&mut buf)?;
+        let got = String::from_utf8(buf)?;
         debug!("parsed");
         trace!("got: {got}", got = &got);
 
-        serde_json::from_str(got.as_str()).map_err(|e| {
+        let j = serde_json::from_str(got.as_str()).map_err(|e| {
             error!("{e}", e = &e);
             e
-        }).context("reading json file")
+        })?;
+
+        Ok(j)
     }
 
-    pub fn rename(&self, old_id: &ArticleId, new_id: ArticleId) -> Result<()> {
+    pub fn rename(&self, old_id: &ArticleId, new_id: ArticleId) -> Result<(), PersistenceError> {
         debug!("rename");
         let mut repo = self.parse_file_as_json()?.data;
         debug!("parsed");
-        let (file, _lock) = self.get_overwrite_handle();
-        file?;
+        let (_file, _lock) = self.get_overwrite_handle();
 
         if repo.get(old_id).is_some() {
             repo.remove(old_id);
@@ -159,37 +164,26 @@ impl ArticleRepository {
             repo.insert(new_id, data.clone());
             Ok(())
         } else {
-            bail!("persistent does not have entry with id = {old_id}")
+            return Err(PersistenceError::AbsentValue)
         }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum PersistenceError {
+    #[error("I/O Error: {_0}")]
+    Io(#[from] std::io::Error),
+    #[error("UTF-8: {_0}")]
+    Utf8(#[from] FromUtf8Error),
+    #[error("JSON deserialize error: {_0}")]
+    JsonDeserialize(#[from] serde_json::Error),
+    #[error("Absent value")]
+    AbsentValue,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct FileScheme {
     pub(in crate::service) data: HashMap<ArticleId, Article>
-}
-
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct ListOperationScheme(pub Vec<FlatId<ArticleId, Article>>);
-
-impl From<FileScheme> for ListOperationScheme {
-    fn from(fs: FileScheme) -> Self {
-        Self(
-            fs.data.into_iter().map(|(k, v)| {
-                FlatId {
-                    id: k,
-                    entity: v
-                }
-            }).collect()
-        )
-    }
-}
-
-#[derive(Eq, PartialEq, Debug, Deserialize, Serialize)]
-pub struct FlatId<Id, Entity> {
-    pub id: Id,
-    #[serde(flatten)]
-    pub entity: Entity,
 }
 
 impl FileScheme {
@@ -200,9 +194,13 @@ impl FileScheme {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct Article {
-    pub created_at: DateTime<Local>,
-    pub updated_at: DateTime<Local>,
-    pub content: String,
+impl Into<ListArticleResponse> for FileScheme {
+    fn into(self) -> ListArticleResponse {
+        ListArticleResponse(self.data.into_iter().map(|(id, entity)| FlatId {
+            id,
+            entity,
+        }).collect::<Vec<_>>())
+    }
 }
+
+use toy_blog_endpoint_model::Article;
