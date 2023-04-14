@@ -5,7 +5,6 @@
 ## How to run
 ```sh
 cargo run -- \
-  --bearer-token=INSERT_YOUR_OWN_PASSWORD \
   --http-host=127.0.0.1 \
   --http-port=8080 \
   --telnet-host=127.0.0.1 \
@@ -13,11 +12,12 @@ cargo run -- \
 ```
 
 ### 解説
-* `--bearer-token`: 記事を更新するときのパスワードを設定する。このパスワードは使い回さないこと。このパスワードは永続化されないので、起動するたびに入力する必要がある。
+* `--bearer-token`: 廃止。標準入力から改行終端で与えること。
 * `--http-host`: HTTPサーバーのホスト。通常は`127.0.0.1`を指定して良い。
 * `--http-port`: HTTPサーバーのポート番号。
 * `--telnet-host`: telnetサーバーのホスト。通常は`127.0.0.1`を指定して良い。
 * `--telnet-port`: telnetサーバーのポート番号。
+* `--read-bearer-token-from-stdin`: 次のメジャーバージョンで廃止予定。このスイッチはもはや互換性のためだけに残されている。
 
 ### 動作させるにあたっての注意事項
 * Cloudflareのトンネルを使っている場合、`--cloudflare`スイッチを付け足すこと。
