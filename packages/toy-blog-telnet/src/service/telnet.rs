@@ -6,13 +6,12 @@ mod process_command;
 mod repository;
 
 use std::sync::{Arc, Mutex};
-use actix_web::web::BytesMut;
+use bytes::BytesMut;
 use anyhow::{Result, Context as _, bail};
 use log::debug;
 use telnet_codec::{TelnetCodec, TelnetEvent};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio_util::codec::Decoder;
 use self::process_command::process_command;
 use self::state::{CONNECTION_POOL, TemporaryStatus};
 use self::stream::{write_text_to_stream};
