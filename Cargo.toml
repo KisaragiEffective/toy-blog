@@ -13,7 +13,7 @@ addr = { version = "0.15.6", features = ["serde"] }
 anyhow = "1.0.70"
 chrono = { version = "0.4.24", default-features = false, features = ["std", "clock", "libc", "time", "serde"] }
 clap = { version = "4.2.2", features = ["derive"] }
-fern = { version = "0.6.1", features = ["colored"] }
+fern = { version = "0.6.2", features = ["colored"] }
 log = "0.4.17"
 once_cell = "1.17.1"
 serde = { version = "1.0.156", features = ["derive"] }
