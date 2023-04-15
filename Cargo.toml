@@ -3,5 +3,4 @@ members = [
     "packages/toy-blog",
     "packages/toy-blog-client",
     "packages/toy-blog-endpoint-model",
-    "packages/toy-blog-telnet",
 ]
