@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic, clippy::nursery)]
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
