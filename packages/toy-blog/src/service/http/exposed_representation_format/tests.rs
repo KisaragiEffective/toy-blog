@@ -12,7 +12,7 @@ fn rfc7232_example() {
             FixedOffset::east_opt(0).unwrap().from_utc_datetime(&dt)
         ).to_string(),
         "Tue, 15 Nov 1994 12:45:26 GMT"
-    )
+    );
 }
 
 #[test]
@@ -25,5 +25,5 @@ fn rfc7232_example_jst() {
                 .unwrap()
         ).to_string(),
         "Tue, 15 Nov 1994 12:45:26 GMT"
-    )
+    );
 }

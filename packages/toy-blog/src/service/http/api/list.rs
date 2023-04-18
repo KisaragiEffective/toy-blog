@@ -103,7 +103,14 @@ pub async fn article_id_list_by_year_and_month(
 ) -> impl Responder {
     let (year, month) = path.into_inner();
     let f = |(_, a): &(&ArticleId, &Article)| {
-        (a.created_at.year() == year.into_inner() as i32) && (a.created_at.month() as u8 == month.into_inner())
+        let filter_year = a.created_at.year() == year.into_inner() as i32;
+        // SAFETY: `month()` returns 1..=12, which is subset of possible u8 value.
+        let article_created_month = unsafe {
+            u8::try_from(a.created_at.month()).unwrap_unchecked()
+        };
+        let filter_month = article_created_month == month.into_inner();
+
+        filter_year && filter_month
     };
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
     let x = GLOBAL_FILE.parse_file_as_json()

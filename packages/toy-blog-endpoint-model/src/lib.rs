@@ -15,7 +15,7 @@ use strum::EnumString;
 pub struct ArticleId(pub String);
 
 impl ArticleId {
-    pub const fn new(s: String) -> Self {
+    #[must_use] pub const fn new(s: String) -> Self {
         Self(s)
     }
 }
@@ -49,7 +49,7 @@ pub enum ArticleCreateWarning {
 impl Display for ArticleCreateWarning {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ArticleCreateWarning::CurlSpecificNoNewLine =>
+            Self::CurlSpecificNoNewLine =>
                 r#"There's no newlines. Perhaps you should use --data-binary instead?
 Note: `man curl(1)` said:
     > When -d, --data is told to read from a file like that, carriage
@@ -85,11 +85,12 @@ pub struct ArticleSnapshot {
 pub struct ArticleContent(String);
 
 impl ArticleContent {
-    pub fn new(s: String) -> Self {
+    #[must_use] pub const fn new(s: String) -> Self {
         Self(s)
     }
 
-    pub fn into_inner(self) -> String {
+    #[allow(clippy::missing_const_for_fn)]
+    #[must_use] pub fn into_inner(self) -> String {
         self.0
     }
 }
@@ -173,7 +174,7 @@ pub struct ArticleIdSetMetadata {
 pub struct AnnoDominiYear(u32);
 
 impl AnnoDominiYear {
-    pub const fn into_inner(self) -> u32 {
+    #[must_use] pub const fn into_inner(self) -> u32 {
         self.0
     }
 }
@@ -182,7 +183,7 @@ impl AnnoDominiYear {
 pub struct OneOriginTwoDigitsMonth(u8);
 
 impl OneOriginTwoDigitsMonth {
-    pub const fn into_inner(self) -> u8 {
+    #[must_use] pub const fn into_inner(self) -> u8 {
         self.0
     }
 }

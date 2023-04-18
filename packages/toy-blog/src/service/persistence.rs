@@ -55,7 +55,7 @@ impl ArticleRepository {
 
         {
             let current_date = Local::now();
-            (&mut a.data).insert(article_id.clone(), Article {
+            a.data.insert(article_id.clone(), Article {
                 created_at: current_date,
                 updated_at: current_date,
                 // visible: false,
@@ -79,7 +79,7 @@ impl ArticleRepository {
 
         {
             let current_date = Local::now();
-            match (&mut fs.data).get_mut(article_id) {
+            match fs.data.get_mut(article_id) {
                 None => {
                     return Err(PersistenceError::AbsentValue)
                 }
@@ -100,11 +100,7 @@ impl ArticleRepository {
         info!("calling read");
         let a = self.parse_file_as_json()?;
         let q = a.data.get(article_id).cloned();
-        if let Some(x) = q {
-            Ok(x)
-        } else {
-            Err(PersistenceError::AbsentValue)
-        }
+        q.ok_or(PersistenceError::AbsentValue)
     }
 
     pub async fn exists(&self, article_id: &ArticleId) -> Result<bool, PersistenceError> {
@@ -121,7 +117,7 @@ impl ArticleRepository {
         let file = file?;
 
         {
-            (&mut a.data).remove(article_id);
+            a.data.remove(article_id);
             info!("modified");
         }
 
@@ -164,12 +160,13 @@ impl ArticleRepository {
             repo.insert(new_id, data.clone());
             Ok(())
         } else {
-            return Err(PersistenceError::AbsentValue)
+            Err(PersistenceError::AbsentValue)
         }
     }
 }
 
 #[derive(Error, Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub enum PersistenceError {
     #[error("I/O Error: {_0}")]
     Io(#[from] std::io::Error),
@@ -194,9 +191,9 @@ impl FileScheme {
     }
 }
 
-impl Into<ListArticleResponse> for FileScheme {
-    fn into(self) -> ListArticleResponse {
-        ListArticleResponse(self.data.into_iter().map(|(id, entity)| FlatId {
+impl From<FileScheme> for ListArticleResponse {
+    fn from(val: FileScheme) -> Self {
+        Self(val.data.into_iter().map(|(id, entity)| FlatId {
             id,
             entity,
         }).collect::<Vec<_>>())
