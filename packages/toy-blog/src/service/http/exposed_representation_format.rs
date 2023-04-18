@@ -2,13 +2,13 @@
 mod tests;
 
 use std::fmt::{Display, Formatter};
-use std::iter::{Empty, empty};
+use std::iter::{Empty, empty, once, Once};
 use actix_web::HttpResponse;
 use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleId, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ArticleIdSet, ArticleIdSetMetadata, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ArticleIdSet, ArticleIdSetMetadata, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
 use crate::service::http::inner_no_leak::{ComposeInternalError, UnhandledError};
 
 type Pair = (HeaderName, HeaderValueUpdateMethod);
@@ -56,8 +56,8 @@ impl<
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            EitherIter::Left(i) => i.next(),
-            EitherIter::Right(i) => i.next(),
+            Self::Left(i) => i.next(),
+            Self::Right(i) => i.next(),
         }
     }
 }
@@ -113,7 +113,7 @@ impl HttpStatusCode for UnhandledError {
 pub struct EndpointRepresentationCompiler<T>(T);
 
 impl<T> EndpointRepresentationCompiler<T> {
-    pub fn from_value(value: T) -> Self {
+    pub const fn from_value(value: T) -> Self {
         Self(value)
     }
 }
@@ -150,7 +150,7 @@ impl<T: Serialize + HttpStatusCode + ContainsHeaderMap> EndpointRepresentationCo
 pub struct HttpFormattedDate(chrono::DateTime<FixedOffset>);
 
 impl HttpFormattedDate {
-    pub fn new(v: chrono::DateTime<FixedOffset>) -> Self {
+    pub const fn new(v: chrono::DateTime<FixedOffset>) -> Self {
         Self(v)
     }
 }
@@ -194,17 +194,13 @@ impl IntoPlainText for CreateArticleResult {
     fn into_plain_text(self) -> String {
         match self {
             Ok(s) => {
-                match s {
-                    ArticleCreatedNotice { warnings, allocated_id } => {
-                        let warnings = warnings
-                            .into_iter()
-                            .map(|a| a.to_string() + "\n")
-                            .collect::<Vec<_>>()
-                            .join("");
+                let ArticleCreatedNotice { warnings, allocated_id } = s;
+                let warnings = warnings
+                    .into_iter()
+                    .map(|a| a.to_string() + "\n")
+                    .collect::<String>();
 
-                        format!("{warnings}OK, saved as {path}.", path = allocated_id)
-                    }
-                }
+                format!("{warnings}OK, saved as {allocated_id}.")
             }
             Err(x) => {
                 match x {
@@ -238,25 +234,29 @@ impl HttpStatusCode for GetArticleResult {
 
 impl ContainsHeaderMap for GetArticleResult {
     type Iterator = EitherIter<
-        core::array::IntoIter<Pair, 1>,
+        core::iter::Once<Pair>,
         Empty<Pair>,
         Pair,
     >;
 
     fn response_headers(&self) -> Self::Iterator {
-        match self {
-            Ok(d) => EitherIter::Left([
-                // TODO: Having ETag is fun, right?
-                // compliant with RFC 7232 (HTTP/1.1 Conditional Requests) § 2.1.1
-                (
-                    LAST_MODIFIED,
-                    HeaderValueUpdateMethod::Overwrite(
-                        HttpFormattedDate::new(d.metadata.updated_at).to_string().try_into().unwrap()
+        use std::iter::once as single_iter;
+
+        self.as_ref().map_or(
+            EitherIter::Right(empty()),
+            |d| EitherIter::Left(
+                single_iter(
+                    // TODO: Having ETag is fun, right?
+                    // compliant with RFC 7232 (HTTP/1.1 Conditional Requests) § 2.1.1
+                    (
+                        LAST_MODIFIED,
+                        HeaderValueUpdateMethod::Overwrite(
+                            HttpFormattedDate::new(d.metadata.updated_at).to_string().try_into().unwrap()
+                        )
                     )
                 )
-            ].into_iter()),
-            Err(_) => EitherIter::Right(empty())
-        }
+            )
+        )
     }
 }
 
@@ -264,11 +264,8 @@ impl IntoPlainText for GetArticleResult {
     fn into_plain_text(self) -> String {
         match self {
             Ok(article) => {
-                match article {
-                    OwnedMetadata { metadata: _, data } => {
-                        data.content.into_inner()
-                    }
-                }
+                let OwnedMetadata { metadata: _, data } = article;
+                data.content.into_inner()
             }
             Err(e) => {
                 match e {
@@ -389,13 +386,13 @@ impl HttpStatusCode for ListArticleResult {
 }
 
 impl ContainsHeaderMap for ListArticleResult {
-    type Iterator = VecIter<Pair>;
+    type Iterator = EitherIter<Empty<Pair>, VecIter<Pair>, Pair>;
 
     fn response_headers(&self) -> Self::Iterator {
-        match self {
-            Ok(e) => e.response_headers(),
-            Err(_) => vec![].into_iter()
-        }
+        self.as_ref().map_or(
+            EitherIter::Left(empty()),
+            |x| EitherIter::Right(x.response_headers())
+        )
     }
 }
 
@@ -453,14 +450,16 @@ impl ContainsHeaderMap for ArticleIdCollectionResponseRepr {
     >;
 
     fn response_headers(&self) -> Self::Iterator {
-        let mut vec = Vec::with_capacity(1);
-        if let Some(newest) = self.0.metadata.newest_updated_at {
-            let date = HttpFormattedDate::new(newest.with_timezone(newest.offset()));
-            vec.push((LAST_MODIFIED, HeaderValueUpdateMethod::Overwrite(date.to_string().try_into().unwrap())));
-            EitherIter::Left(vec.into_iter())
-        } else {
-            EitherIter::Right(empty())
-        }
+        self.0.metadata.newest_updated_at.map_or(
+            EitherIter::Right(empty()),
+            |newest| {
+                let date = HttpFormattedDate::new(newest.with_timezone(newest.offset()));
+                let vec = vec![
+                    (LAST_MODIFIED, HeaderValueUpdateMethod::Overwrite(date.to_string().try_into().unwrap()))
+                ];
+                EitherIter::Left(vec.into_iter())
+            }
+        )
     }
 }
 

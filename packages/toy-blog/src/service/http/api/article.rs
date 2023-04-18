@@ -1,9 +1,9 @@
-use std::cmp::Reverse;
+
 use actix_web::{HttpRequest, Responder};
 use actix_web::{delete, get, post, put};
-use actix_web::body::BoxBody;
+
 use actix_web::http::header::USER_AGENT;
-use actix_web::web::{Bytes, Path, Query};
+use actix_web::web::{Bytes, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use log::info;
 use once_cell::unsync::Lazy;
@@ -17,15 +17,12 @@ use toy_blog_endpoint_model::{
     CreateArticleError,
     DeleteArticleError,
     GetArticleError,
-    ListArticleRequestQuery,
-    ListArticleResult,
     OwnedMetadata,
-    UpdateArticleError,
-    ListArticleResponse
+    UpdateArticleError
 };
 use crate::service::http::repository::GLOBAL_FILE;
 use crate::service::http::auth::is_wrong_token;
-use crate::service::http::inner_no_leak::{ComposeInternalError, UnhandledError};
+use crate::service::http::inner_no_leak::{UnhandledError};
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
 
 #[post("/{article_id}")]
@@ -44,10 +41,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
         }
 
         let plain_text = String::from_utf8(data.to_vec());
-        let text = match plain_text {
-            Ok(s) => s,
-            Err(_) => return Ok(Err(CreateArticleError::InvalidUtf8))
-        };
+        let Ok(text) = plain_text else { return Ok(Err(CreateArticleError::InvalidUtf8)) };
 
         info!("valid utf8");
         let res = GLOBAL_FILE.create_entry(&path, text.clone()).await;

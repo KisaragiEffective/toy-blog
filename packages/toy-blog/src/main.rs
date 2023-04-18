@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
             http_port,
             http_host,
             cloudflare_support,
-            read_bearer_token_from_stdin
+            read_bearer_token_from_stdin: _
         } => {
             let bearer_token = {
                 let mut buf = String::new();
