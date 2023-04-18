@@ -4,8 +4,8 @@ use actix_web::HttpResponse;
 use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
 use chrono::{FixedOffset, Utc};
-use serde::Serialize;
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleSnapshot, ArticleSnapshotMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
+use serde::{Serialize, Serializer};
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleId, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ArticleIdSet, ArticleIdSetMetadata, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
 use crate::service::http::inner_no_leak::{ComposeInternalError, UnhandledError};
 
 type Pair = (HeaderName, HeaderValueUpdateMethod);
@@ -431,5 +431,60 @@ impl IntoPlainText for ChangeArticleIdRequestResult {
                 }
             }
         }
+    }
+}
+
+pub(super) struct ArticleIdCollectionResponseRepr(pub(super) OwnedMetadata<ArticleIdSetMetadata, ArticleIdSet>);
+
+impl HttpStatusCode for ArticleIdCollectionResponseRepr {
+    fn call_status_code(&self) -> StatusCode {
+        StatusCode::OK
+    }
+}
+
+impl ContainsHeaderMap for ArticleIdCollectionResponseRepr {
+    type Iterator = EitherIter<
+        VecIter<(HeaderName, HeaderValueUpdateMethod)>,
+        Empty<(HeaderName, HeaderValueUpdateMethod)>,
+        (HeaderName, HeaderValueUpdateMethod)
+    >;
+
+    fn response_headers(&self) -> Self::Iterator {
+        let mut vec = Vec::with_capacity(1);
+        if let Some(newest) = self.0.metadata.newest_updated_at {
+            let date = HttpFormattedDate::new(newest.with_timezone(newest.offset()));
+            vec.push((LAST_MODIFIED, HeaderValueUpdateMethod::Overwrite(date.to_string().try_into().unwrap())));
+            EitherIter::Left(vec.into_iter())
+        } else {
+            EitherIter::Right(empty())
+        }
+    }
+}
+
+impl Serialize for ArticleIdCollectionResponseRepr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        self.0.data.serialize(serializer)
+    }
+}
+
+pub(super) struct InternalErrorExposedRepr(pub(super) Box<dyn std::error::Error>);
+
+impl HttpStatusCode for InternalErrorExposedRepr {
+    fn call_status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
+impl ContainsHeaderMap for InternalErrorExposedRepr {
+    type Iterator = Empty<(HeaderName, HeaderValueUpdateMethod)>;
+
+    fn response_headers(&self) -> Self::Iterator {
+        empty()
+    }
+}
+
+impl Serialize for InternalErrorExposedRepr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        self.0.to_string().serialize(serializer)
     }
 }

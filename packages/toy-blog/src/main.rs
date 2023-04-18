@@ -21,6 +21,7 @@ use service::http::auth::WRITE_TOKEN;
 use crate::service::http::api::{article, meta};
 use crate::service::http::cors::middleware_factory as cors_middleware_factory;
 use toy_blog_endpoint_model::ArticleId;
+use crate::service::http::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
 use crate::service::http::repository::GLOBAL_FILE;
 
 #[derive(Parser)]
@@ -108,9 +109,12 @@ async fn main() -> Result<()> {
                                             article::remove,
                                         )
                                     ),
-                                article::list,
                                 prefixed_service("/meta")
-                                    .service(meta::change_id)
+                                    .service(meta::change_id),
+                                prefixed_service("/list")
+                                    .service(article_id_list)
+                                    .service(article_id_list_by_year)
+                                    .service(article_id_list_by_year_and_month)
                             )
                         )
                     )

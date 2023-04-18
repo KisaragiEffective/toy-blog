@@ -7,7 +7,8 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use chrono::{DateTime, FixedOffset, Local};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde::de::Error;
 use strum::EnumString;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -158,4 +159,75 @@ pub struct Article {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
     pub content: String,
+}
+
+#[derive(Serialize, Clone, Eq, PartialEq, Debug)]
+pub struct ArticleIdSet(pub HashSet<ArticleId>);
+
+pub struct ArticleIdSetMetadata {
+    pub oldest_created_at: Option<DateTime<Local>>,
+    pub newest_updated_at: Option<DateTime<Local>>,
+}
+
+#[derive(Deserialize, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct AnnoDominiYear(u32);
+
+impl AnnoDominiYear {
+    pub const fn into_inner(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct OneOriginTwoDigitsMonth(u8);
+
+impl OneOriginTwoDigitsMonth {
+    pub const fn into_inner(self) -> u8 {
+        self.0
+    }
+}
+
+impl TryFrom<u8> for OneOriginTwoDigitsMonth {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if (1..=12).contains(&value) {
+            Ok(Self(value))
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl FromStr for OneOriginTwoDigitsMonth {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let v = match s {
+            "01" => Self(1),
+            "02" => Self(2),
+            "03" => Self(3),
+            "04" => Self(4),
+            "05" => Self(5),
+            "06" => Self(6),
+            "07" => Self(7),
+            "08" => Self(8),
+            "09" => Self(9),
+            "10" => Self(10),
+            "11" => Self(11),
+            "12" => Self(12),
+            _ => return Err(())
+        };
+
+        Ok(v)
+    }
+}
+
+impl<'de> Deserialize<'de> for OneOriginTwoDigitsMonth {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+        let s = String::deserialize(deserializer)?;
+        let x = s.parse().map_err(|_| D::Error::custom("bad value"))?;
+        
+        Ok(x)
+    }
 }
