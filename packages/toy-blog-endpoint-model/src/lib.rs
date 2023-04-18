@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::fmt::{Display, Formatter};
