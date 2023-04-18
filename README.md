@@ -6,17 +6,13 @@
 ```sh
 cargo run -- \
   --http-host=127.0.0.1 \
-  --http-port=8080 \
-  --telnet-host=127.0.0.1 \
-  --telnet-port=12345
+  --http-port=8080
 ```
 
 ### 解説
 * `--bearer-token`: 廃止。標準入力から改行終端で与えること。
 * `--http-host`: HTTPサーバーのホスト。通常は`127.0.0.1`を指定して良い。
 * `--http-port`: HTTPサーバーのポート番号。
-* `--telnet-host`: telnetサーバーのホスト。通常は`127.0.0.1`を指定して良い。
-* `--telnet-port`: telnetサーバーのポート番号。
 * `--read-bearer-token-from-stdin`: 次のメジャーバージョンで廃止予定。このスイッチはもはや互換性のためだけに残されている。
 
 ### 動作させるにあたっての注意事項
