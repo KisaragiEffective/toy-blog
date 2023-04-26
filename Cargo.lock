@@ -16,7 +16,7 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.8",
 ]
 
 [[package]]
@@ -68,7 +68,7 @@ dependencies = [
  "sha1",
  "smallvec",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.8",
  "tracing",
  "zstd",
 ]
@@ -717,7 +717,7 @@ dependencies = [
  "indexmap",
  "slab",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.8",
  "tracing",
 ]
 
@@ -1415,9 +1415,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.3"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc463cd8deddc3770d20f9852143d50bf6094e640b485cb2e189a2099085ff45"
+checksum = "806fe8c2c87eccc8b3267cbae29ed3ab2d0bd37fca70ab622e46aaa9375ddb7d"
 dependencies = [
  "bytes",
  "futures-core",
@@ -1446,7 +1446,7 @@ dependencies = [
  "strum",
  "telnet-codec",
  "tokio",
- "tokio-util 0.6.10",
+ "tokio-util 0.7.8",
 ]
 
 [[package]]
