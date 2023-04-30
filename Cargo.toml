@@ -10,7 +10,7 @@ actix-cors = "0.6.4"
 actix-web = "4.3.1"
 actix-web-httpauth = "0.8.0"
 addr = { version = "0.15.6", features = ["serde"] }
-anyhow = "1.0.70"
+anyhow = "1.0.71"
 chrono = { version = "0.4.24", default-features = false, features = ["std", "clock", "libc", "time", "serde"] }
 clap = { version = "4.2.5", features = ["derive"] }
 fern = { version = "0.6.2", features = ["colored"] }
