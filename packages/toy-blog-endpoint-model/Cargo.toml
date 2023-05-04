@@ -9,4 +9,3 @@ edition = "2021"
 chrono = { version = "0.4.24", features = ["serde"] }
 serde = { version = "1.0.160", features = ["derive"] }
 strum = { version = "0.24.1", features = ["derive"] }
-thiserror = "1.0.40"
