@@ -49,6 +49,10 @@ enum Commands {
         #[clap(long)]
         article_id: ArticleId,
     },
+    Version {
+        #[clap(long)]
+        plain: bool,
+    }
 }
 
 fn setup_logger() -> Result<()> {
@@ -169,6 +173,17 @@ async fn main() -> Result<()> {
                     Especially, importing Shift-JIS texts are NOT supported.")
                 }
             }
+        }
+        Commands::Version { plain } => {
+            const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+            const NAME: &'static str = env!("CARGO_PKG_NAME");
+            if plain {
+                println!("{VERSION}");
+            } else {
+                println!("{NAME} {VERSION}");
+            }
+
+            Ok(())
         }
     }
 }
