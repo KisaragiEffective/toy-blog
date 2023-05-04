@@ -1,0 +1,11 @@
+[package]
+name = "toy-blog-endpoint-model"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = { version = "0.4.24", features = ["serde"] }
+serde = { version = "1.0.160", features = ["derive"] }
+strum = { version = "0.24.1", features = ["derive"] }

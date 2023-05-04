@@ -7,9 +7,7 @@ mod service;
 use std::fs::File;
 use std::io::{BufReader, Read, stdin};
 use std::path::PathBuf;
-use std::process::exit;
 use actix_web::{App, HttpServer};
-use actix_web::dev::{fn_service, Server};
 use actix_web::middleware::Logger;
 
 use actix_web::web::scope as prefixed_service;
@@ -18,15 +16,13 @@ use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
-use tokio::net::TcpStream;
 use service::http::auth::WRITE_TOKEN;
 
 use crate::service::http::api::{article, meta};
 use crate::service::http::cors::middleware_factory as cors_middleware_factory;
-use service::persistence::ListOperationScheme;
-use service::persistence::model::ArticleId;
+use toy_blog_endpoint_model::ArticleId;
+use crate::service::http::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
 use crate::service::http::repository::GLOBAL_FILE;
-use crate::service::telnet::telnet_server_service;
 
 #[derive(Parser)]
 struct Args {
@@ -37,19 +33,13 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     Run {
-        /// DEPRECATED
-        #[clap(long)]
-        bearer_token: Option<String>,
         #[clap(long)]
         http_port: u16,
         #[clap(long)]
         http_host: String,
-        #[clap(long)]
-        telnet_port: u16,
-        #[clap(long)]
-        telnet_host: String,
         #[clap(long = "cloudflare")]
         cloudflare_support: bool,
+        /// DEPRECATED, It will be removed in next major version. This switch is no-op.
         #[clap(long)]
         read_bearer_token_from_stdin: bool,
     },
@@ -86,25 +76,16 @@ async fn main() -> Result<()> {
     let args: Args = Args::parse();
     match args.subcommand {
         Commands::Run {
-            bearer_token,
             http_port,
             http_host,
-            telnet_port,
-            telnet_host,
             cloudflare_support,
-            read_bearer_token_from_stdin
+            read_bearer_token_from_stdin: _
         } => {
-            let bearer_token = bearer_token.map_or_else(|| if read_bearer_token_from_stdin {
+            let bearer_token = {
                 let mut buf = String::new();
                 stdin().read_line(&mut buf).expect("failed to read from stdin");
                 buf.trim_end().to_string()
-            } else {
-                eprintln!("You must set bearer token to protecting your server.");
-                exit(1)
-            }, |token| {
-                eprintln!("--bearer-token is unsecure. It will be removed by next major release. Please use --read-bearer-token-from-stdin.");
-                token
-            });
+            };
 
             WRITE_TOKEN.set(bearer_token).unwrap();
 
@@ -128,9 +109,12 @@ async fn main() -> Result<()> {
                                             article::remove,
                                         )
                                     ),
-                                article::list,
                                 prefixed_service("/meta")
-                                    .service(meta::change_id)
+                                    .service(meta::change_id),
+                                prefixed_service("/list")
+                                    .service(article_id_list)
+                                    .service(article_id_list_by_year)
+                                    .service(article_id_list_by_year_and_month)
                             )
                         )
                     )
@@ -142,16 +126,6 @@ async fn main() -> Result<()> {
                     .wrap(Logger::new(logger_format))
                     .wrap(cors_middleware_factory())
             });
-
-        tokio::spawn({
-            Server::build()
-                .bind("echo", (telnet_host, telnet_port), move || {
-                    fn_service(move |stream: TcpStream| {
-                        telnet_server_service(stream)
-                    })
-                })?
-                .run()
-        });
 
         http_server
                     .bind((http_host, http_port))?
