@@ -1414,6 +1414,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
+ "thiserror",
  "tokio",
  "toy-blog-endpoint-model",
 ]
@@ -1429,7 +1430,6 @@ dependencies = [
  "chrono",
  "serde",
  "strum",
- "thiserror",
 ]
 
 [[package]]
