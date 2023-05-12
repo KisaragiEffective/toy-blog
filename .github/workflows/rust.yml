@@ -11,15 +11,32 @@ env:
 
 jobs:
   build:
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-apple-darwin
+          # Oracle Cloud Infrastructure
+          - target: aarch64-unknown-linux-gnu
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+    - name: Setup toolchain
+      run: |
+        rustup target add '${{ matrix.target }}'
     - name: Download cache
       uses: Swatinem/rust-cache@v2
+      with:
+        key: '${{ matrix.target }}'
+        prefix-key: '${{ env.CI_RUST_CACHE_VERSION }}'
+      env:
+        CI_RUST_CACHE_VERSION: v0
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --target '${{ matrix.target }}'
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --verbose --target '${{ matrix.target }}'
