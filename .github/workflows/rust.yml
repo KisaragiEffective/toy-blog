@@ -51,7 +51,7 @@ jobs:
       id: setup-mingw-w64
       run: |
         sudo apt install gcc-mingw-w64-x86-64
-      if: ${{ matrix.target == 'gcc-mingw-w64-x86-64' }}
+      if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
     - name: Download cache
       uses: Swatinem/rust-cache@v2
       with:
