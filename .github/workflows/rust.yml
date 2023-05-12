@@ -37,12 +37,12 @@ jobs:
     - name: Install musl-tools
       id: setup-x64-musl
       run: |
-        apt install musl-tools
+        sudo apt install musl-tools
       if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
     - name: Install gcc-aarch64-linux-gnu
       id: setup-aarch64-linux
       run: |
-        apt install gcc-aarch64-linux-gnu
+        sudo apt install gcc-aarch64-linux-gnu
       if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
     - name: Download cache
       uses: Swatinem/rust-cache@v2
