@@ -19,10 +19,13 @@ jobs:
             runner: ubuntu-latest
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-latest
+            test: true
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
+            test: true
           - target: x86_64-apple-darwin
             runner: macos-latest
+            test: true
           # Oracle Cloud Infrastructure
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-latest
@@ -44,6 +47,11 @@ jobs:
       run: |
         sudo apt install gcc-aarch64-linux-gnu
       if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+    - name: Install gcc-mingw-w64-x86-64
+      id: setup-mingw-w64
+      run: |
+        sudo apt install gcc-mingw-w64-x86-64
+      if: ${{ matrix.target == 'gcc-mingw-w64-x86-64' }}
     - name: Download cache
       uses: Swatinem/rust-cache@v2
       with:
@@ -51,7 +59,8 @@ jobs:
         prefix-key: '${{ env.CI_RUST_CACHE_VERSION }}'
       env:
         CI_RUST_CACHE_VERSION: v0
-    - name: Build
-      run: cargo build --verbose --target '${{ matrix.target }}'
+    - name: Compile check
+      run: cargo check --verbose --target '${{ matrix.target }}'
     - name: Run tests
       run: cargo test --verbose --target '${{ matrix.target }}'
+      if: ${{ matrix.test == 'true' }}
