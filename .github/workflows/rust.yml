@@ -61,6 +61,8 @@ jobs:
         CI_RUST_CACHE_VERSION: v0
     - name: Compile check
       run: cargo check --verbose --target '${{ matrix.target }}'
+    - name: Lint with clippy
+      run: cargo clippy --verbose --target '${{ matrix.target }}'
     - name: Run tests
       run: cargo test --verbose --target '${{ matrix.target }}'
       if: ${{ matrix.test == 'true' }}
