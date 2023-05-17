@@ -175,8 +175,8 @@ async fn main() -> Result<()> {
             }
         }
         Commands::Version { plain } => {
-            const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-            const NAME: &'static str = env!("CARGO_PKG_NAME");
+            const VERSION: &str = env!("CARGO_PKG_VERSION");
+            const NAME: &str = env!("CARGO_PKG_NAME");
             if plain {
                 println!("{VERSION}");
             } else {
