@@ -9,7 +9,7 @@ use chrono::Local;
 use log::{debug, error, info, trace};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use toy_blog_endpoint_model::{ArticleId, FlatId, ListArticleResponse};
+use toy_blog_endpoint_model::{ArticleId, FlatId, ListArticleResponse, Visibility};
 
 pub struct ArticleRepository {
     path: PathBuf,
@@ -46,7 +46,7 @@ impl ArticleRepository {
         (File::options().read(true).open(&self.path), self.lock.read().unwrap())
     }
 
-    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
+    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String, visibility: Visibility) -> Result<(), PersistenceError> {
         info!("calling add_entry");
         let mut a = self.parse_file_as_json()?;
         info!("parsed");
@@ -60,6 +60,7 @@ impl ArticleRepository {
                 updated_at: current_date,
                 // visible: false,
                 content: article_content,
+                visibility: Some(visibility),
             });
             info!("modified");
         }
@@ -93,6 +94,21 @@ impl ArticleRepository {
 
         serde_json::to_writer(file, &fs)?;
         info!("wrote");
+        Ok(())
+    }
+
+    pub async fn change_visibility(&self, article_id: &ArticleId, new_visibility: Visibility) -> Result<(), PersistenceError> {
+        info!("calling change_visibility");
+        let mut a = self.parse_file_as_json()?;
+        info!("parsed");
+        let (file, _lock) = self.get_overwrite_handle();
+        let file = file?;
+
+        a.data.get_mut(article_id).ok_or(PersistenceError::AbsentValue)?.visibility = Some(new_visibility);
+
+        trace!("saving");
+        serde_json::to_writer(file, &a)?;
+        trace!("saved");
         Ok(())
     }
 

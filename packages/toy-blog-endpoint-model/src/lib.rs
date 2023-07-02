@@ -160,6 +160,16 @@ pub struct Article {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
     pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<Visibility>
+}
+
+#[derive(Deserialize, Serialize, Copy, Clone, Eq, PartialEq, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum Visibility {
+    Public,
+    Restricted,
+    Private,
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]

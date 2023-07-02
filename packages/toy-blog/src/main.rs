@@ -3,6 +3,7 @@
 
 mod extension;
 mod service;
+mod migration;
 
 use std::fs::File;
 use std::io::{BufReader, Read, stdin};
@@ -20,7 +21,7 @@ use service::http::auth::WRITE_TOKEN;
 
 use crate::service::http::api::{article, meta};
 use crate::service::http::cors::middleware_factory as cors_middleware_factory;
-use toy_blog_endpoint_model::ArticleId;
+use toy_blog_endpoint_model::{ArticleId, Visibility};
 use crate::service::http::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
 use crate::service::http::repository::GLOBAL_FILE;
 
@@ -131,6 +132,7 @@ async fn main() -> Result<()> {
                     .wrap(cors_middleware_factory())
             });
 
+            println!("running!");
         http_server
                     .bind((http_host, http_port))?
                     .run()
@@ -161,7 +163,7 @@ async fn main() -> Result<()> {
 
             match content {
                 Ok(content) => {
-                    GLOBAL_FILE.create_entry(&article_id, content).await?;
+                    GLOBAL_FILE.create_entry(&article_id, content, Visibility::Private).await?;
                     info!("Successfully imported as {article_id}.");
                     Ok(())
                 }
