@@ -1,8 +1,3 @@
-// This fires on HttpRequest, which is not FP.
-// But causes ICE; it will block CI.
-// Let's disable this until the fix land on 1.71.0. See https://github.com/rust-lang/rust-clippy/issues/10645 for more info.
-#![allow(clippy::future_not_send)]
-
 pub mod api;
 pub mod cors;
 pub mod repository;
