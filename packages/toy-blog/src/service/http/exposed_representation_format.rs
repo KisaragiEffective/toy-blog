@@ -147,13 +147,6 @@ impl<T: Serialize + HttpStatusCode + ContainsHeaderMap> EndpointRepresentationCo
     }
 }
 
-impl<T: HttpStatusCode> EndpointRepresentationCompiler<T> {
-    pub fn into_empty_body(self) -> HttpResponse<BoxBody> {
-        let mut res = HttpResponse::new(self.0.call_status_code());
-        res
-    }
-}
-
 pub struct HttpFormattedDate(chrono::DateTime<FixedOffset>);
 
 impl HttpFormattedDate {
