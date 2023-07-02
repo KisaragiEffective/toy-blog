@@ -9,10 +9,15 @@ use actix_web_httpauth::extractors::bearer::BearerAuth;
 use log::{error, info};
 use once_cell::unsync::Lazy;
 use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, Visibility};
-use crate::service::http::repository::GLOBAL_FILE;
 use crate::service::http::auth::is_wrong_token;
 use crate::service::http::inner_no_leak::{UnhandledError};
+use crate::service::http::repository::GLOBAL_FILE;
+use crate::service::persistence::ArticleRepository;
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
+
+fn x_get<'a>() -> &'a ArticleRepository {
+    GLOBAL_FILE.get().expect("must be fully-initialized")
+}
 
 #[post("/{article_id}")]
 #[allow(clippy::future_not_send)]
@@ -25,7 +30,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
 
         let path = ArticleId::new(path.into_inner());
         info!("create");
-        if GLOBAL_FILE.exists(&path).await.unwrap() {
+        if x_get().exists(&path).await.unwrap() {
             return Ok(Err(CreateArticleError::DuplicatedArticleId))
         }
 
@@ -33,7 +38,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
         let Ok(text) = plain_text else { return Ok(Err(CreateArticleError::InvalidUtf8)) };
 
         info!("valid utf8");
-        let res = GLOBAL_FILE.create_entry(&path, text.clone(), Visibility::Private).await;
+        let res = x_get().create_entry(&path, text.clone(), Visibility::Private).await;
         match res {
             Ok(_) => {}
             Err(err) => return Err(UnhandledError::new(err))
@@ -74,7 +79,7 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
     let res = || async {
         let article_id = ArticleId::new(path.into_inner());
 
-        let exists = match GLOBAL_FILE.exists(&article_id).await {
+        let exists = match x_get().exists(&article_id).await {
             Ok(exists) => exists,
             Err(e) => return Res::Internal(UnhandledError::new(e))
         };
@@ -83,7 +88,7 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
             return Res::General(GetArticleError::NoSuchArticleFoundById)
         }
 
-        let content = match GLOBAL_FILE.read_snapshot(&article_id).await {
+        let content = match x_get().read_snapshot(&article_id).await {
             Ok(content) => content,
             Err(e) => return Res::Internal(UnhandledError::new(e))
         };
@@ -133,7 +138,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
 
         let article_id = ArticleId::new(path.into_inner());
 
-        let exists = match GLOBAL_FILE.exists(&article_id).await {
+        let exists = match x_get().exists(&article_id).await {
             Ok(exists) => exists,
             Err(e) => return Err(UnhandledError::new(e))
         };
@@ -147,7 +152,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
             Err(e) => return Ok(Err(UpdateArticleError::InvalidByteSequenceForUtf8(e)))
         };
 
-        match GLOBAL_FILE.update_entry(&article_id, data).await {
+        match x_get().update_entry(&article_id, data).await {
             Ok(_) => {
                 Ok(Ok(()))
             }
@@ -171,7 +176,7 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
             return Ok(Err(DeleteArticleError::InvalidBearerToken))
         }
 
-        let exists = match GLOBAL_FILE.exists(&article_id).await {
+        let exists = match x_get().exists(&article_id).await {
             Ok(exists) => exists,
             Err(err) => return Err(UnhandledError::new(err))
         };
@@ -180,7 +185,7 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
             return Ok(Err(DeleteArticleError::NoSuchArticleFoundById))
         }
 
-        match GLOBAL_FILE.remove(&article_id).await {
+        match x_get().remove(&article_id).await {
             Ok(_) => {
                 Ok(Ok(()))
             }

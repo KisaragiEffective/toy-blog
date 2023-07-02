@@ -21,7 +21,7 @@ pub async fn change_id(query: Query<ChangeArticleIdRequestQuery>, bearer: Bearer
             return Ok(Err(ChangeArticleIdError::Unauthorized))
         }
 
-        match GLOBAL_FILE.rename(&from, to) {
+        match GLOBAL_FILE.get().expect("must be fully-initialized").rename(&from, to) {
             Ok(_) => {
                 Ok(Ok(()))
             }

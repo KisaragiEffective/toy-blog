@@ -14,96 +14,66 @@ use toy_blog_endpoint_model::{
 };
 
 #[get("/article")]
+#[allow(clippy::unused_async)]
 pub async fn article_id_list() -> impl Responder {
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let x = GLOBAL_FILE.parse_file_as_json()
-        .map(|x|
-            (
-                ArticleIdSet(x.data.keys().cloned().collect::<HashSet<_>>()),
-                // oldest creation
-                x.data.values().min_by_key(|x| x.created_at).map(|x| x.created_at),
-                // newest update
-                x.data.values().max_by_key(|x| x.updated_at).map(|x| x.updated_at),
-            )
-        );
+    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
 
-    match x {
-        Ok((l, old_cre, new_upd)) =>
-            EndpointRepresentationCompiler::from_value(
-                ArticleIdCollectionResponseRepr(OwnedMetadata {
-                    metadata: ArticleIdSetMetadata {
-                        oldest_created_at: old_cre,
-                        newest_updated_at: new_upd,
-                    },
-                    data: l
-                })
-            ).into_json()
-                .map_body(|_, y| serde_json::to_string(&y).expect(""))
-                .map_into_boxed_body(),
-        Err(e) => EndpointRepresentationCompiler::from_value(
-            InternalErrorExposedRepr(Box::new(e))
-        ).into_json()
-            .map_body(|_, y| serde_json::to_string(&y).expect(""))
-            .map_into_boxed_body()
-    }
+    let id = ArticleIdSet(x.iter().map(|x| &x.0).cloned().collect());
+    let old_cre = x.iter().min_by_key(|x| x.1.created_at).map(|x| x.1.created_at);
+    let new_upd = x.iter().max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at);
+
+    EndpointRepresentationCompiler::from_value(
+        ArticleIdCollectionResponseRepr(OwnedMetadata {
+            metadata: ArticleIdSetMetadata {
+                oldest_created_at: old_cre,
+                newest_updated_at: new_upd,
+            },
+            data: id
+        })
+    ).into_json()
+        .map_body(|_, y| serde_json::to_string(&y).expect(""))
+        .map_into_boxed_body()
 }
 
 #[get("/article/{year}")]
+#[allow(clippy::unused_async)]
 pub async fn article_id_list_by_year(path: Path<AnnoDominiYear>) -> impl Responder {
     let year = path.into_inner();
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let f = |(_, a): &(&ArticleId, &Article)| a.created_at.year() == year.into_inner() as i32;
-    let x = GLOBAL_FILE.parse_file_as_json()
-        .map(|x|
-            (
-                ArticleIdSet(
-                    x.data.iter()
-                        .filter(f)
-                        .map(|(x, _)| x)
-                        .cloned()
-                        .collect::<HashSet<_>>()
-                ),
-                // oldest creation
-                x.data.iter()
-                    .filter(f)
-                    .min_by_key(|(_, x)| x.created_at)
-                    .map(|(_, x)| x.created_at),
-                // newest update
-                x.data.iter()
-                    .filter(f)
-                    .max_by_key(|(_, x)| x.updated_at)
-                    .map(|(_, x)| x.updated_at),
-            )
-        );
+    let f = |a: &Article| a.created_at.year() == year.into_inner() as i32;
+    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
 
-    match x {
-        Ok((l, old_cre, new_upd)) =>
-            EndpointRepresentationCompiler::from_value(
-                ArticleIdCollectionResponseRepr(OwnedMetadata {
-                    metadata: ArticleIdSetMetadata {
-                        oldest_created_at: old_cre,
-                        newest_updated_at: new_upd,
-                    },
-                    data: l
-                })
-            ).into_json()
-                .map_body(|_, y| serde_json::to_string(&y).expect(""))
-                .map_into_boxed_body(),
-        Err(e) => EndpointRepresentationCompiler::from_value(
-            InternalErrorExposedRepr(Box::new(e))
-        ).into_json()
-            .map_body(|_, y| serde_json::to_string(&y).expect(""))
-            .map_into_boxed_body()
-    }
+    let (matched_article_id_set, oldest_creation, most_recent_update) = (
+        ArticleIdSet(
+            x.iter().filter(|x| f(&x.1)).map(|x| &x.0).cloned().collect()
+        ),
+        x.iter().filter(|x| f(&x.1)).min_by_key(|x| x.1.created_at).map(|x| x.1.created_at),
+        x.iter().filter(|x| f(&x.1)).max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at),
+    );
+
+    EndpointRepresentationCompiler::from_value(
+        ArticleIdCollectionResponseRepr(OwnedMetadata {
+            metadata: ArticleIdSetMetadata {
+                oldest_created_at: oldest_creation,
+                newest_updated_at: most_recent_update,
+            },
+            data: matched_article_id_set
+        })
+    ).into_json()
+        .map_body(|_, y| serde_json::to_string(&y).expect(""))
+        .map_into_boxed_body()
 }
 
 #[get("/article/{year}/{month}")]
+#[allow(clippy::unused_async)]
 pub async fn article_id_list_by_year_and_month(
     path: Path<(AnnoDominiYear, OneOriginTwoDigitsMonth)>
 ) -> impl Responder {
     let (year, month) = path.into_inner();
-    let f = |(_, a): &(&ArticleId, &Article)| {
-        let filter_year = a.created_at.year() == year.into_inner() as i32;
+    let f = |a: &Article| {
+        #[allow(clippy::cast_possible_wrap)] // effectively FP, AnnoDominiYear is <= 2147483647; are we going to use this product even if after that? ;)
+            let filter_year = a.created_at.year() == year.into_inner() as i32;
         // SAFETY: `month()` returns 1..=12, which is subset of possible u8 value.
         let article_created_month = unsafe {
             u8::try_from(a.created_at.month()).unwrap_unchecked()
@@ -113,46 +83,25 @@ pub async fn article_id_list_by_year_and_month(
         filter_year && filter_month
     };
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let x = GLOBAL_FILE.parse_file_as_json()
-        .map(|x|
-            (
-                ArticleIdSet(
-                    x.data.iter()
-                        .filter(f)
-                        .map(|(x, _)| x)
-                        .cloned()
-                        .collect::<HashSet<_>>()
-                ),
-                // oldest creation
-                x.data.iter()
-                    .filter(f)
-                    .min_by_key(|(_, x)| x.created_at)
-                    .map(|(_, x)| x.created_at),
-                // newest update
-                x.data.iter()
-                    .filter(f)
-                    .max_by_key(|(_, x)| x.updated_at)
-                    .map(|(_, x)| x.updated_at),
-            )
-        );
+    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
 
-    match x {
-        Ok((l, old_cre, new_upd)) =>
-            EndpointRepresentationCompiler::from_value(
-                ArticleIdCollectionResponseRepr(OwnedMetadata {
-                    metadata: ArticleIdSetMetadata {
-                        oldest_created_at: old_cre,
-                        newest_updated_at: new_upd,
-                    },
-                    data: l
-                })
-            ).into_json()
-                .map_body(|_, y| serde_json::to_string(&y).expect(""))
-                .map_into_boxed_body(),
-        Err(e) => EndpointRepresentationCompiler::from_value(
-            InternalErrorExposedRepr(Box::new(e))
-        ).into_json()
-            .map_body(|_, y| serde_json::to_string(&y).expect(""))
-            .map_into_boxed_body()
-    }
+    let (matched_article_id_set, oldest_creation, most_recent_update) = (
+        ArticleIdSet(
+            x.iter().filter(|x| f(&x.1)).map(|x| &x.0).cloned().collect()
+        ),
+        x.iter().filter(|x| f(&x.1)).min_by_key(|x| x.1.created_at).map(|x| x.1.created_at),
+        x.iter().filter(|x| f(&x.1)).max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at),
+    );
+
+    EndpointRepresentationCompiler::from_value(
+        ArticleIdCollectionResponseRepr(OwnedMetadata {
+            metadata: ArticleIdSetMetadata {
+                oldest_created_at: oldest_creation,
+                newest_updated_at: most_recent_update,
+            },
+            data: matched_article_id_set
+        })
+    ).into_json()
+        .map_body(|_, y| serde_json::to_string(&y).expect(""))
+        .map_into_boxed_body()
 }
