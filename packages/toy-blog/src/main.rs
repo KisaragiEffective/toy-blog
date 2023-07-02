@@ -7,6 +7,7 @@
 
 mod extension;
 mod service;
+mod migration;
 
 use std::fs::File;
 use std::io::{BufReader, Read, stdin};
@@ -20,11 +21,12 @@ use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
+use serde_json::Value;
 use service::http::auth::WRITE_TOKEN;
 
 use crate::service::http::api::{article, meta};
 use crate::service::http::cors::middleware_factory as cors_middleware_factory;
-use toy_blog_endpoint_model::ArticleId;
+use toy_blog_endpoint_model::{ArticleId, Visibility};
 use crate::service::http::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
 use crate::service::http::repository::GLOBAL_FILE;
 use crate::service::persistence::ArticleRepository;
@@ -95,7 +97,22 @@ async fn main() -> Result<()> {
                 stdin().read_line(&mut buf).expect("failed to read from stdin");
                 buf.trim_end().to_string()
             };
-            GLOBAL_FILE.set(ArticleRepository::new("data/article.json").await).expect("unreachable!");
+
+            const PATH: &str = "data/article.json";
+
+            // migration
+            {
+                #[allow(unused_qualifications)]
+                let migrated_data = crate::migration::migrate_article_repr(
+                    serde_json::from_reader::<_, Value>(File::open(PATH).expect("ow, failed!")).expect("ow, failed!")
+                );
+
+                info!("migrated");
+
+                serde_json::to_writer(File::options().write(true).truncate(true).open(PATH).expect("ow, failed!"), &migrated_data)
+                    .expect("ow, failed!");
+            }
+            GLOBAL_FILE.set(ArticleRepository::new(PATH).await).expect("unreachable!");
 
             WRITE_TOKEN.set(bearer_token).unwrap();
 
@@ -137,6 +154,7 @@ async fn main() -> Result<()> {
                     .wrap(cors_middleware_factory())
             });
 
+            println!("running!");
         http_server
                     .bind((http_host, http_port))?
                     .run()
@@ -167,7 +185,7 @@ async fn main() -> Result<()> {
 
             match content {
                 Ok(content) => {
-                    GLOBAL_FILE.get().expect("must be fully-initialized").create_entry(&article_id, content).await?;
+                    GLOBAL_FILE.get().expect("must be fully-initialized").create_entry(&article_id, content, Visibility::Private).await?;
                     info!("Successfully imported as {article_id}.");
                     Ok(())
                 }

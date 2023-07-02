@@ -13,7 +13,7 @@ use fs2::FileExt;
 use log::{debug, error, info, trace};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use toy_blog_endpoint_model::{ArticleId, FlatId, ListArticleResponse};
+use toy_blog_endpoint_model::{ArticleId, FlatId, ListArticleResponse, Visibility};
 
 #[derive(Debug)]
 pub struct ArticleRepository {
@@ -71,16 +71,18 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
+    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String, visibility: Visibility) -> Result<(), PersistenceError> {
         self.invalidate();
 
         let current_date = Local::now();
         self.cache.write().expect("lock is poisoned").data.insert(article_id.clone(), Article {
-            created_at: current_date,
-            updated_at: current_date,
-            // visible: false,
-            content: article_content,
-        });
+                created_at: current_date,
+                updated_at: current_date,
+                // visible: false,
+                content: article_content,
+                visibility: Some(visibility),
+            });
+
 
         self.save()?;
         Ok(())
@@ -111,6 +113,18 @@ impl ArticleRepository {
         }
 
         self.save()?;
+        Ok(())
+    }
+
+    pub async fn change_visibility(&self, article_id: &ArticleId, new_visibility: Visibility) -> Result<(), PersistenceError> {
+        info!("calling change_visibility");
+        self.invalidate();
+
+        self.cache.write().expect("poisoned").deref_mut().data.get_mut(article_id)
+            .ok_or(PersistenceError::AbsentValue)?.visibility = Some(new_visibility);
+
+        self.save()?;
+
         Ok(())
     }
 

@@ -3,6 +3,7 @@ mod tests;
 
 use std::fmt::{Display, Formatter};
 use std::iter::{Empty, empty, once, Once};
+use actix_web::body::BoxBody;
 use actix_web::HttpResponse;
 use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
@@ -145,7 +146,6 @@ impl<T: Serialize + HttpStatusCode + ContainsHeaderMap> EndpointRepresentationCo
         res.set_body(self.0)
     }
 }
-
 
 pub struct HttpFormattedDate(chrono::DateTime<FixedOffset>);
 
