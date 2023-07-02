@@ -118,16 +118,13 @@ impl ArticleRepository {
 
     pub async fn change_visibility(&self, article_id: &ArticleId, new_visibility: Visibility) -> Result<(), PersistenceError> {
         info!("calling change_visibility");
-        let mut a = self.parse_file_as_json()?;
-        info!("parsed");
-        let (file, _lock) = self.get_overwrite_handle();
-        let file = file?;
+        self.invalidate();
 
-        a.data.get_mut(article_id).ok_or(PersistenceError::AbsentValue)?.visibility = Some(new_visibility);
+        self.cache.write().expect("poisoned").deref_mut().data.get_mut(article_id)
+            .ok_or(PersistenceError::AbsentValue)?.visibility = Some(new_visibility);
 
-        trace!("saving");
-        serde_json::to_writer(file, &a)?;
-        trace!("saved");
+        self.save()?;
+
         Ok(())
     }
 

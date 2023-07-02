@@ -21,6 +21,7 @@ use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
 use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
+use serde_json::Value;
 use service::http::auth::WRITE_TOKEN;
 
 use crate::service::http::api::{article, meta};
@@ -96,7 +97,22 @@ async fn main() -> Result<()> {
                 stdin().read_line(&mut buf).expect("failed to read from stdin");
                 buf.trim_end().to_string()
             };
-            GLOBAL_FILE.set(ArticleRepository::new("data/article.json").await).expect("unreachable!");
+
+            const PATH: &str = "data/article.json";
+
+            // migration
+            {
+                #[allow(unused_qualifications)]
+                let migrated_data = crate::migration::migrate_article_repr(
+                    serde_json::from_reader::<_, Value>(File::open(PATH).expect("ow, failed!")).expect("ow, failed!")
+                );
+
+                info!("migrated");
+
+                serde_json::to_writer(File::options().write(true).truncate(true).open(PATH).expect("ow, failed!"), &migrated_data)
+                    .expect("ow, failed!");
+            }
+            GLOBAL_FILE.set(ArticleRepository::new(PATH).await).expect("unreachable!");
 
             WRITE_TOKEN.set(bearer_token).unwrap();
 
