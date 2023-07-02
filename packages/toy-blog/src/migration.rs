@@ -72,7 +72,6 @@ impl ArticleMigration for AddAccessLevel {
 
 pub(crate) fn migrate_article_repr(raw_article_table: Value) -> Value {
     let raw_article_table = AddTagVersion.migrate(raw_article_table);
-    let raw_article_table = AddAccessLevel.migrate(raw_article_table);
 
-    raw_article_table
+    AddAccessLevel.migrate(raw_article_table)
 }
