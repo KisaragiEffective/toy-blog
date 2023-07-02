@@ -1,5 +1,9 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
+// This fires on HttpRequest, which is not FP.
+// But causes ICE; it will block CI.
+// Let's disable this until the fix land on 1.71.0. See https://github.com/rust-lang/rust-clippy/issues/10645 for more info.
+#![allow(clippy::future_not_send)]
 
 mod extension;
 mod service;
@@ -23,6 +27,7 @@ use crate::service::http::cors::middleware_factory as cors_middleware_factory;
 use toy_blog_endpoint_model::ArticleId;
 use crate::service::http::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
 use crate::service::http::repository::GLOBAL_FILE;
+use crate::service::persistence::ArticleRepository;
 
 #[derive(Parser)]
 struct Args {
@@ -90,6 +95,7 @@ async fn main() -> Result<()> {
                 stdin().read_line(&mut buf).expect("failed to read from stdin");
                 buf.trim_end().to_string()
             };
+            GLOBAL_FILE.set(ArticleRepository::new("data/article.json").await).expect("unreachable!");
 
             WRITE_TOKEN.set(bearer_token).unwrap();
 
@@ -161,7 +167,7 @@ async fn main() -> Result<()> {
 
             match content {
                 Ok(content) => {
-                    GLOBAL_FILE.create_entry(&article_id, content).await?;
+                    GLOBAL_FILE.get().expect("must be fully-initialized").create_entry(&article_id, content).await?;
                     info!("Successfully imported as {article_id}.");
                     Ok(())
                 }
