@@ -22,13 +22,13 @@ use clap::{Parser, Subcommand};
 use fern::colors::ColoredLevelConfig;
 use log::{debug, info};
 use serde_json::Value;
-use service::http::auth::WRITE_TOKEN;
+use service::rest::auth::WRITE_TOKEN;
 
-use crate::service::http::api::{article, meta};
-use crate::service::http::cors::middleware_factory as cors_middleware_factory;
+use crate::service::rest::api::{article, meta};
+use crate::service::rest::cors::middleware_factory as cors_middleware_factory;
 use toy_blog_endpoint_model::{ArticleId, Visibility};
-use crate::service::http::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
-use crate::service::http::repository::GLOBAL_FILE;
+use crate::service::rest::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
+use crate::service::rest::repository::GLOBAL_FILE;
 use crate::service::persistence::ArticleRepository;
 
 #[derive(Parser)]

@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use actix_web::{get, Responder};
 use actix_web::web::Path;
 use chrono::Datelike;
-use crate::service::http::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, InternalErrorExposedRepr};
-use crate::service::http::repository::GLOBAL_FILE;
+use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, InternalErrorExposedRepr};
+use crate::service::rest::repository::GLOBAL_FILE;
 use toy_blog_endpoint_model::{
     ArticleId, ArticleIdSet,
     OwnedMetadata,

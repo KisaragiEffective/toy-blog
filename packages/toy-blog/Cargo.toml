@@ -24,3 +24,6 @@ strum = { version = "0.25.0", features = ["derive"] }
 thiserror = "1.0.40"
 tokio = { version = "1.29.1", features = ["time", "macros"] }
 toy-blog-endpoint-model = { path = "../toy-blog-endpoint-model" }
+
+[features]
+unstable_activitypub = []
