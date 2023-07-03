@@ -10,7 +10,7 @@ use actix_web::http::StatusCode;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
 use toy_blog_endpoint_model::{ArticleCreatedNotice, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ArticleIdSet, ArticleIdSetMetadata, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
-use crate::service::http::inner_no_leak::{ComposeInternalError, UnhandledError};
+use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
 
 type Pair = (HeaderName, HeaderValueUpdateMethod);
 

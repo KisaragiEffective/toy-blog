@@ -9,9 +9,9 @@ use actix_web_httpauth::extractors::bearer::BearerAuth;
 use log::{error, info};
 use once_cell::unsync::Lazy;
 use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, Visibility};
-use crate::service::http::auth::is_wrong_token;
-use crate::service::http::inner_no_leak::{UnhandledError};
-use crate::service::http::repository::GLOBAL_FILE;
+use crate::service::rest::auth::is_wrong_token;
+use crate::service::rest::inner_no_leak::{UnhandledError};
+use crate::service::rest::repository::GLOBAL_FILE;
 use crate::service::persistence::ArticleRepository;
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
 
