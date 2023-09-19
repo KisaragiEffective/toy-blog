@@ -4,7 +4,7 @@ pub mod repository;
 pub mod auth;
 pub mod exposed_representation_format;
 
-pub(in self) use inner_no_leak::ComposeInternalError;
+use inner_no_leak::ComposeInternalError;
 
 mod inner_no_leak {
     use std::error::Error;
