@@ -12,7 +12,7 @@ actix-web = "4.4.0"
 actix-web-httpauth = "0.8.1"
 anyhow = "1.0.75"
 chrono = { version = "0.4.27", default-features = false, features = ["std", "clock", "libc", "time", "serde"] }
-clap = { version = "4.4.5", features = ["derive"] }
+clap = { version = "4.4.6", features = ["derive"] }
 fern = { version = "0.6.2", features = ["colored"] }
 fs2 = { version = "0.4.3" }
 log = "0.4.20"
