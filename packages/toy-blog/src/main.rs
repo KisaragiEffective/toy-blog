@@ -10,7 +10,7 @@ mod service;
 mod migration;
 
 use std::fs::File;
-use std::io::{BufReader, Read, stdin};
+use std::io::{BufReader, Read, stdin, Write};
 use std::path::PathBuf;
 use actix_web::{App, HttpServer};
 use actix_web::middleware::Logger;
@@ -101,17 +101,23 @@ async fn main() -> Result<()> {
             const PATH: &str = "data/article.json";
 
             // migration
+
             {
                 #[allow(unused_qualifications)]
                 let migrated_data = crate::migration::migrate_article_repr(
-                    serde_json::from_reader::<_, Value>(File::open(PATH).expect("ow, failed!")).expect("ow, failed!")
+                    serde_json::from_reader::<_, Value>(File::open(PATH).expect("failed to read existing config"))
+                        .expect("failed to deserialize config")
                 );
 
                 info!("migrated");
 
-                serde_json::to_writer(File::options().write(true).truncate(true).open(PATH).expect("ow, failed!"), &migrated_data)
-                    .expect("ow, failed!");
+                serde_json::to_writer(
+                    File::options().write(true).truncate(true).open(PATH).expect("failed to write over existing config"),
+                    &migrated_data
+                )
+                    .expect("failed to serialize config");
             }
+
             GLOBAL_FILE.set(ArticleRepository::new(PATH).await).expect("unreachable!");
 
             WRITE_TOKEN.set(bearer_token).unwrap();

@@ -25,6 +25,7 @@ pub struct ArticleRepository {
 impl ArticleRepository {
     fn create_default_file_if_absent(path: impl AsRef<Path>) {
         if !path.as_ref().exists() {
+            info!("creating article table");
             let mut file = File::options().write(true).read(true).create(true).open(path.as_ref()).unwrap();
             write!(
                 &mut (file),
@@ -246,7 +247,7 @@ struct NamedLockedFile {
 impl NamedLockedFile {
     async fn try_new(path: PathBuf, timeout: Duration) -> Result<Self, FileLockError> {
         tokio::time::timeout(timeout, async {
-            let f = File::options().read(true).write(true).truncate(true).open(&path)?;
+            let f = File::options().read(true).write(true).open(&path)?;
             f.lock_exclusive()?;
 
             Ok(Self {
