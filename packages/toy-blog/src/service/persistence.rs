@@ -25,6 +25,7 @@ pub struct ArticleRepository {
 impl ArticleRepository {
     fn create_default_file_if_absent(path: impl AsRef<Path>) {
         if !path.as_ref().exists() {
+            info!("creating article table");
             let mut file = File::options().write(true).read(true).create(true).open(path.as_ref()).unwrap();
             write!(
                 &mut (file),
