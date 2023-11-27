@@ -246,7 +246,7 @@ struct NamedLockedFile {
 impl NamedLockedFile {
     async fn try_new(path: PathBuf, timeout: Duration) -> Result<Self, FileLockError> {
         tokio::time::timeout(timeout, async {
-            let f = File::options().read(true).write(true).truncate(true).open(&path)?;
+            let f = File::options().read(true).write(true).open(&path)?;
             f.lock_exclusive()?;
 
             Ok(Self {
