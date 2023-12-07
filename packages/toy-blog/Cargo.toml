@@ -7,7 +7,7 @@ metadata = { cargo-udeps = { ignore = [["thiserror"]] } }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-cors = "0.6.4"
+actix-cors = "0.6.5"
 actix-web = "4.4.0"
 actix-web-httpauth = "0.8.1"
 anyhow = "1.0.75"
