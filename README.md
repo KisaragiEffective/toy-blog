@@ -4,7 +4,7 @@
 
 ## How to run
 ```sh
-cargo run -- \
+echo "YOUR PASSWORD" | cargo run -- \
   --http-host=127.0.0.1 \
   --http-port=8080
 ```
@@ -15,16 +15,19 @@ cargo run -- \
 * `--http-port`: HTTPサーバーのポート番号。
 * `--read-bearer-token-from-stdin`: 次のメジャーバージョンで廃止予定。このスイッチはもはや互換性のためだけに残されている。
 
+`echo "YOUR PASSWORD"`は更新時のパスワードを設定するために必須である。指定しなかった場合、端末から入力するように促される。
+
 ### 動作させるにあたっての注意事項
-* Cloudflareのトンネルを使っている場合、`--cloudflare`スイッチを付け足すこと。
+* Cloudflare tunnelを使っている場合、`--cloudflare`スイッチを付け足すこと。これは接続先を[`CF-Connecting-IP`](https://developers.cloudflare.com/fundamentals/reference/http-request-headers/#cf-connecting-ip)から取得するための措置である。
+  * このスイッチがないのにCloudflare tunnelを経由してHTTP接続があった場合、全てのアクセスのリモートアドレスが127.0.0.1であるかのように表示されるので注意。
 
 ## 永続化
 全てのデータはJSONで永続化される。
 
-データはカレントディレクトリ直下の`data/`ディレクトリ以下に保存される。
+データはカレントディレクトリ直下の`data`ディレクトリ直下に保存される。
 
 ### ディレクトリ構造
-* カレントディレクトリ
+* (カレントディレクトリ)
   * `data`
     * `articles.json`
     * `cors_setting.json`
@@ -42,12 +45,14 @@ cargo run -- \
 実装上の注: `GET /article/{article_id}`の応答速度を向上させるためにmapを用いている。
 
 ### `cors_setting.json`
-CORSアクセスが許可されるプロトコル付きのFQDNを記述する。
+CORSリクエストにおいてアクセスが許可されるプロトコル付きのFQDNを記述する。
 * (array)
-  * `protocol_and_fqdn: string` - プロトコル付きのFQDN。例えば、`https://my-frontend.example.com`
+  * `protocol_and_fqdn` - プロトコル付きのFQDN。例えば、`https://my-frontend.example.com`
 
 ## API
 APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。HTTPSには対応していない。
+
+冗長になることを避けるため、「レスポンス」と書かれた節ではステータスコードの次にそのステータスコードが返される条件、及び付随するヘッダーやペイロードの値などを記述する。
 
 ### `GET /list/article`
 現在登録されている記事のIDを配列形式で全て返す。この際、順序が何らかの一貫した順序付けになっているとは限らない。
@@ -76,7 +81,7 @@ APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。
 記事を返す。
 
 #### レスポンス
-* `200`: 指定された記事が見つかった。本文は`text/plain`である。
+* `200`: 指定された記事が見つかった。本文の`Content-Type`の値は`text/plain`である。
 * `404`: 指定された記事が見つからなかった。
 * `500`: バックエンド側で予期せぬ例外が起きた。
 
@@ -84,10 +89,10 @@ APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。
 記事を作成する。
 
 #### ボディ
-* 記事の本文
+* 記事の本文として使われる文字列。UTF-8でなければならない。
 
-#### ヘッダー
-* `Content-Type: text/plain`
+#### 要求されるヘッダーの値
+* `Content-Type`: `text/plain`
 
 #### レスポンス
 * `200`: OK。指定された記事は作成された。
@@ -97,6 +102,9 @@ APIのエンドポイントのベースは`http://{YOUR_DOMAIN}/api`である。
 
 ### `PUT /article/{article_id}`
 記事を更新する。
+
+#### ボディ
+* 記事の本文として使われる文字列。UTF-8でなければならない。
 
 #### レスポンス
 * `200`: OK。指定された記事は更新された。
