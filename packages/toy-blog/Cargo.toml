@@ -8,7 +8,7 @@ metadata = { cargo-udeps = { ignore = [["thiserror"]] } }
 
 [dependencies]
 actix-cors = "0.6.5"
-actix-web = "4.4.0"
+actix-web = "4.4.1"
 actix-web-httpauth = "0.8.1"
 anyhow = "1.0.76"
 chrono = { version = "0.4.31", default-features = false, features = ["std", "clock", "libc", "serde"] }
