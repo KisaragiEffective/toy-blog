@@ -10,7 +10,7 @@ metadata = { cargo-udeps = { ignore = [["thiserror"]] } }
 actix-cors = "0.6.5"
 actix-web = "4.5.1"
 actix-web-httpauth = "0.8.1"
-anyhow = "1.0.79"
+anyhow = "1.0.80"
 chrono = { version = "0.4.34", default-features = false, features = ["std", "clock", "libc", "serde"] }
 clap = { version = "4.5.1", features = ["derive"] }
 fern = { version = "0.6.2", features = ["colored"] }
