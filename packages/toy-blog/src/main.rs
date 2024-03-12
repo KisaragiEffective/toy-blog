@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![warn(clippy::pedantic, clippy::nursery)]
 // This fires on HttpRequest, which is not FP.
-// But we don't want to fire
+// But we don't want to be triggered because service function often refers it.
 #![allow(clippy::future_not_send)]
 
 mod extension;
