@@ -1,6 +1,6 @@
 pub(super) mod rest;
-pub mod persistence;
+mod persistence;
 #[cfg(feature = "unstable_activitypub")]
-pub mod activitypub;
+mod activitypub;
 pub(super) mod cli;
 pub(super) mod import;

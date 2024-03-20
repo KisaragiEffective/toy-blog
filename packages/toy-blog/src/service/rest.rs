@@ -1,8 +1,8 @@
-pub mod api;
-pub mod cors;
-pub mod repository;
-pub mod auth;
-pub mod exposed_representation_format;
+mod api;
+mod cors;
+pub(in crate::service) mod repository;
+mod auth;
+mod exposed_representation_format;
 
 use std::fs::File;
 use std::io::stdin;

@@ -117,6 +117,7 @@ impl ArticleRepository {
         Ok(())
     }
 
+    // TODO: there's bug that the engine cannot change its visibility.
     pub async fn change_visibility(&self, article_id: &ArticleId, new_visibility: Visibility) -> Result<(), PersistenceError> {
         info!("calling change_visibility");
         self.invalidate();
