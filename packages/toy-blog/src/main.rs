@@ -8,15 +8,11 @@ mod extension;
 mod service;
 mod migration;
 
-
-use std::io::Read;
-
 use anyhow::Result;
 use clap::Parser;
 use fern::colors::ColoredLevelConfig;
 
 use crate::service::cli::{Args, Commands};
-use crate::service::rest::repository::GLOBAL_FILE;
 
 fn setup_logger() -> Result<()> {
     let colors = ColoredLevelConfig::new();

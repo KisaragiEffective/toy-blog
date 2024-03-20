@@ -3,12 +3,12 @@ use actix_web::web::Query;
 use actix_web::post;
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use toy_blog_endpoint_model::{ChangeArticleIdError, ChangeArticleIdRequestQuery, ChangeArticleIdRequestResult};
-use crate::GLOBAL_FILE;
 use crate::service::rest::auth::{is_wrong_token};
 use crate::service::rest::exposed_representation_format::EndpointRepresentationCompiler;
 use crate::service::rest::ComposeInternalError;
 use crate::service::rest::inner_no_leak::UnhandledError;
 use crate::service::persistence::PersistenceError;
+use crate::service::rest::repository::GLOBAL_FILE;
 
 #[post("/change-id")]
 pub async fn change_id(query: Query<ChangeArticleIdRequestQuery>, bearer: BearerAuth) -> impl Responder {

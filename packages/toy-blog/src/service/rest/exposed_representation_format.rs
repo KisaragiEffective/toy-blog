@@ -2,8 +2,7 @@
 mod tests;
 
 use std::fmt::{Display, Formatter};
-use std::iter::{Empty, empty, once, Once};
-use actix_web::body::BoxBody;
+use std::iter::{Empty, empty};
 use actix_web::HttpResponse;
 use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
@@ -12,6 +11,7 @@ use serde::{Serialize, Serializer};
 use toy_blog_endpoint_model::{ArticleCreatedNotice, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ArticleIdSet, ArticleIdSetMetadata, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
 use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
 
+// TODO: give more precise name
 type Pair = (HeaderName, HeaderValueUpdateMethod);
 
 pub trait IntoPlainText {
@@ -377,6 +377,7 @@ impl HttpStatusCode for ListArticleResult {
     fn call_status_code(&self) -> StatusCode {
         match self {
             Ok(e) => e.call_status_code(),
+            #[allow(clippy::uninhabited_references)]
             Err(e) => {
                 match *e {
                 }
