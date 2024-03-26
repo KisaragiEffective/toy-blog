@@ -15,24 +15,29 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use toy_blog_endpoint_model::{ArticleId, FlatId, ListArticleResponse, Visibility};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArticleRepository {
     cache: Arc<RwLock<FileScheme>>,
-    invalidated: AtomicBool,
+    invalidated: Arc<AtomicBool>,
     file_lock: Arc<RwLock<NamedLockedFile>>,
 }
 
 impl ArticleRepository {
-    fn create_default_file_if_absent(path: impl AsRef<Path>) {
+    // TODO: visible for test
+    pub(super) fn create_default_file_if_absent(path: impl AsRef<Path>) {
         if !path.as_ref().exists() {
-            info!("creating article table");
-            let mut file = File::options().write(true).read(true).create(true).truncate(false).open(path.as_ref()).unwrap();
-            write!(
-                &mut (file),
-                "{default_json}",
-                default_json = serde_json::to_string(&FileScheme::empty()).unwrap()
-            ).unwrap();
+            Self::init(path)
         }
+    }
+    
+    pub(super) fn init(path: impl AsRef<Path>) {
+        info!("creating article table");
+        let mut file = File::options().write(true).read(true).create(true).truncate(false).open(path.as_ref()).unwrap();
+        write!(
+            &mut (file),
+            "{default_json}",
+            default_json = serde_json::to_string(&FileScheme::empty()).unwrap()
+        ).unwrap();
     }
 
     pub async fn new(path: impl AsRef<Path>) -> Self {
@@ -45,7 +50,7 @@ impl ArticleRepository {
 
         Self {
             cache: Arc::new(RwLock::new(Self::parse_file_as_json_static(&mut lock).expect("crash"))),
-            invalidated: AtomicBool::new(false),
+            invalidated: Arc::new(AtomicBool::new(false)),
             file_lock: Arc::new(RwLock::new(lock)),
         }
     }
@@ -63,11 +68,13 @@ impl ArticleRepository {
     }
 
     fn save(&self) -> Result<(), serde_json::Error> {
+        let r = &mut **self.file_lock.write().expect("file lock is poisoned");
+        r.rewind().expect("seek");
         serde_json::to_writer(
-            &mut **self.file_lock.write().expect("file lock is poisoned"),
+            r,
             &&*self.cache.read().expect("cache is poisoned")
         )?;
-        trace!("saved");
+        debug!("saved");
 
         Ok(())
     }
@@ -287,4 +294,58 @@ enum FileLockError {
     Io(#[from] std::io::Error),
     #[error("timeout")]
     Timeout,
+}
+
+#[cfg(test)]
+mod tests {
+    use fern::colors::ColoredLevelConfig;
+    use toy_blog_endpoint_model::{ArticleId, Visibility};
+    use crate::service::persistence::ArticleRepository;
+
+    fn setup_logger() -> anyhow::Result<()> {
+        let colors = ColoredLevelConfig::new();
+        fern::Dispatch::new()
+            .format(move |out, message, record| {
+                out.finish(format_args!(
+                    "{}[{}][{}] {}",
+                    chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                    record.target(),
+                    colors.color(record.level()),
+                    message
+                ));
+            })
+            .level(log::LevelFilter::Debug)
+            .chain(std::io::stdout())
+            // .chain(fern::log_file("output.log")?)
+            .apply()?;
+        Ok(())
+    }
+
+    #[test]
+    fn check_file_cursor_position_is_rewinded_to_its_start() {
+        /* 想定シナリオ
+         * 1. 新しく作成
+         * 2. 何らかの記事を作る
+         * 3. repoのセッションを閉じる
+         * 4. もう一度開こうとした時にエラーにならないこと
+         */
+        setup_logger().expect("log");
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let temp_repo = ArticleRepository::new(m.path()).await;
+                temp_repo.create_entry(&ArticleId::new("12345".to_string()), "12345 Hello".to_string(), Visibility::Private).await.expect("failed to save");
+                temp_repo.create_entry(&ArticleId::new("23456".to_string()), "23456 Hello".to_string(), Visibility::Private).await.expect("failed to save");
+                drop(temp_repo);
+                let temp_repo = ArticleRepository::new(m.path()).await;
+                let y = temp_repo.entries().iter().find(|x| x.0 == ArticleId::new("12345".to_string())).expect("12345").1.content == "12345 Hello";
+                assert!(y);
+                let y = temp_repo.entries().iter().find(|x| x.0 == ArticleId::new("23456".to_string())).expect("23456").1.content == "23456 Hello";
+                assert!(y);
+            });
+    }
 }
