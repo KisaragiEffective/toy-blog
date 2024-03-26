@@ -94,7 +94,7 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
         };
 
         match content.visibility {
-            Some(x) if x != Visibility::Public => {
+            Some(x) if x == Visibility::Private => {
                 return Res::General(GetArticleError::NoSuchArticleFoundById)
             }
             _ => {}
