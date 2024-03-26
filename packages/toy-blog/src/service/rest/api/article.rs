@@ -4,11 +4,11 @@ use actix_web::{delete, get, post, put};
 
 use actix_web::http::header::USER_AGENT;
 use actix_web::http::StatusCode;
-use actix_web::web::{Bytes, Path};
+use actix_web::web::{Bytes, Json, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use log::{error, info};
 use once_cell::unsync::Lazy;
-use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, Visibility};
+use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, UpdateVisibilityPayload, Visibility};
 use crate::service::rest::auth::is_wrong_token;
 use crate::service::rest::inner_no_leak::{UnhandledError};
 use crate::service::rest::repository::GLOBAL_FILE;
@@ -190,6 +190,39 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
         }
 
         match x_get().remove(&article_id).await {
+            Ok(_) => {
+                Ok(Ok(()))
+            }
+            Err(err) => {
+                Err(UnhandledError::new(err))
+            }
+        }
+    };
+
+    EndpointRepresentationCompiler::from_value(res().await).into_plain_text()
+}
+
+#[put("/{article_id}/visibility")]
+pub async fn update_visibility(path: Path<String>, payload: Json<UpdateVisibilityPayload>, bearer: BearerAuth) -> impl Responder {
+    let res = || async {
+        let article_id = ArticleId::new(path.into_inner());
+        let token = bearer.token();
+
+        if is_wrong_token(token) {
+            return Ok(Err(DeleteArticleError::InvalidBearerToken))
+        }
+
+        let exists = match x_get().exists(&article_id).await {
+            Ok(exists) => exists,
+            Err(err) => return Err(UnhandledError::new(err))
+        };
+
+        if !exists {
+            return Ok(Err(DeleteArticleError::NoSuchArticleFoundById))
+        }
+
+        let new_visibility = payload.visibility;
+        match x_get().change_visibility(&article_id, new_visibility).await {
             Ok(_) => {
                 Ok(Ok(()))
             }

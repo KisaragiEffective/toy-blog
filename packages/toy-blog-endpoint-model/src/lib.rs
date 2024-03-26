@@ -242,3 +242,8 @@ impl<'de> Deserialize<'de> for OneOriginTwoDigitsMonth {
         Ok(x)
     }
 }
+
+#[derive(Deserialize)]
+pub struct UpdateVisibilityPayload {
+    pub visibility: Visibility,
+}
