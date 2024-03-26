@@ -1,6 +1,7 @@
 //! data migration
 
 use serde_json::{Map, Value};
+use toy_blog_endpoint_model::Article;
 
 trait SerdeJsonValueMoveExtension {
     ///
@@ -45,6 +46,16 @@ impl ArticleMigration for AddTagVersion {
     }
 }
 
+macro_rules! name_of {
+    ($t:tt::$field:ident) => {
+        {
+            // #[allow(unused)]
+            let _ = |arg: &$t| arg.$field;
+            stringify!($field)
+        }
+    };
+}
+
 struct AddAccessLevel;
 
 impl ArticleMigration for AddAccessLevel {
@@ -63,7 +74,7 @@ impl ArticleMigration for AddAccessLevel {
             .as_object_mut().expect("article table must be object");
 
         article_table.values_mut().for_each(|article| {
-            article.as_object_mut().expect("article").insert("access".to_string(), Value::from("public"));
+            article.as_object_mut().expect("article").insert(name_of!(Article::visibility).to_string(), Value::from("public"));
         });
 
         Value::from(top)
