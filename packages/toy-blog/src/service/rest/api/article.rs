@@ -93,15 +93,12 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
             Err(e) => return Res::Internal(UnhandledError::new(e))
         };
 
-        match (content.visibility, auth) {
-            (Visibility::Private, Some(auth)) => {
-                if is_wrong_token(auth.token()) {
-                    return Res::General(GetArticleError::NoSuchArticleFoundById)
-                }
-                // now, private article can see from permitted user!
+        // Visibility::Restricted, Visibility::Publicは検証不要
+        if let (Visibility::Private, Some(auth)) = (content.visibility, auth) {
+            if is_wrong_token(auth.token()) {
+                return Res::General(GetArticleError::NoSuchArticleFoundById)
             }
-            // Visibility::Restricted, Visibility::Publicは検証不要
-            _ => {}
+            // now, private article can see from permitted user!
         }
 
         let u = content.updated_at;
