@@ -81,7 +81,7 @@ impl ArticleRepository {
                 updated_at: current_date,
                 // visible: false,
                 content: article_content,
-                visibility: Some(visibility),
+                visibility,
             });
 
 
@@ -123,7 +123,7 @@ impl ArticleRepository {
         self.invalidate();
 
         self.cache.write().expect("poisoned").deref_mut().data.get_mut(article_id)
-            .ok_or(PersistenceError::AbsentValue)?.visibility = Some(new_visibility);
+            .ok_or(PersistenceError::AbsentValue)?.visibility = new_visibility;
 
         self.save()?;
 

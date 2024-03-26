@@ -94,7 +94,7 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
         };
 
         match (content.visibility, auth) {
-            (Some(Visibility::Private), Some(auth)) if is_wrong_token(auth.token()) => {
+            (Visibility::Private, Some(auth)) => {
                 if is_wrong_token(auth.token()) {
                     return Res::General(GetArticleError::NoSuchArticleFoundById)
                 }

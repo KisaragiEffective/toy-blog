@@ -13,7 +13,7 @@ pub async fn article_id_list() -> impl Responder {
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
     let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
 
-    let id = ArticleIdSet(x.iter().filter(|x| x.1.visibility == Some(Visibility::Public)).map(|x| &x.0).cloned().collect());
+    let id = ArticleIdSet(x.iter().filter(|x| x.1.visibility == Visibility::Public).map(|x| &x.0).cloned().collect());
     let old_cre = x.iter().min_by_key(|x| x.1.created_at).map(|x| x.1.created_at);
     let new_upd = x.iter().max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at);
 
@@ -35,7 +35,7 @@ pub async fn article_id_list() -> impl Responder {
 pub async fn article_id_list_by_year(path: Path<AnnoDominiYear>) -> impl Responder {
     let year = path.into_inner();
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let f = |a: &Article| a.created_at.year() == year.into_inner() as i32 && a.visibility == Some(Visibility::Public);
+    let f = |a: &Article| a.created_at.year() == year.into_inner() as i32 && a.visibility == Visibility::Public;
     let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
 
     let (matched_article_id_set, oldest_creation, most_recent_update) = (
@@ -74,7 +74,7 @@ pub async fn article_id_list_by_year_and_month(
         };
         let filter_month = article_created_month == month.into_inner();
 
-        filter_year && filter_month && a.visibility == Some(Visibility::Public)
+        filter_year && filter_month && a.visibility == Visibility::Public
     };
     // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
     let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
