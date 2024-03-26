@@ -86,6 +86,7 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
                                     article::fetch,
                                     article::update,
                                     article::remove,
+                                    article::update_visibility,
                                 )
                             ),
                         prefixed_service("/meta")

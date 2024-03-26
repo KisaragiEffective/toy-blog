@@ -160,8 +160,7 @@ pub struct Article {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
     pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub visibility: Option<Visibility>
+    pub visibility: Visibility
 }
 
 #[derive(Deserialize, Serialize, Copy, Clone, Eq, PartialEq, Debug)]
@@ -241,4 +240,9 @@ impl<'de> Deserialize<'de> for OneOriginTwoDigitsMonth {
         
         Ok(x)
     }
+}
+
+#[derive(Deserialize)]
+pub struct UpdateVisibilityPayload {
+    pub visibility: Visibility,
 }
