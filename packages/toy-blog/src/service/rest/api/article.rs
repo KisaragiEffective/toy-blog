@@ -68,7 +68,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
 }
 
 #[get("/{article_id}")]
-pub async fn fetch(path: Path<String>) -> impl Responder {
+pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Responder {
 
     enum Res {
         Internal(UnhandledError),
@@ -93,10 +93,14 @@ pub async fn fetch(path: Path<String>) -> impl Responder {
             Err(e) => return Res::Internal(UnhandledError::new(e))
         };
 
-        match content.visibility {
-            Some(x) if x == Visibility::Private => {
-                return Res::General(GetArticleError::NoSuchArticleFoundById)
+        match (content.visibility, auth) {
+            (Some(Visibility::Private), Some(auth)) if is_wrong_token(auth.token()) => {
+                if is_wrong_token(auth.token()) {
+                    return Res::General(GetArticleError::NoSuchArticleFoundById)
+                }
+                // now, private article can see from permitted user!
             }
+            // Visibility::Restricted, Visibility::Publicは検証不要
             _ => {}
         }
 
