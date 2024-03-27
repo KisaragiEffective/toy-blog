@@ -1,101 +1,216 @@
+use std::future::{Future, ready};
+
 use actix_web::{get, Responder};
 use actix_web::web::Path;
 use chrono::Datelike;
 
-use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleIdSet, ArticleIdSetMetadata, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
+use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleIdSet, ArticleIdSetMetadata, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
 
-use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler};
+use crate::service::persistence::ArticleRepository;
+use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, MaybeNotModified, ReportLastModofied};
+use crate::service::rest::header::IfModifiedSince;
 use crate::service::rest::repository::GLOBAL_FILE;
+
+fn compute_and_filter_out(
+    article_repository: &ArticleRepository,
+    if_modified_since: Option<IfModifiedSince>,
+    additional_filter: impl Clone + Fn(&&(ArticleId, Article)) -> bool
+) -> ArticleIdCollectionResponseRepr {
+    let x = article_repository.entries();
+    let only_public = |x: &&(ArticleId, Article)| x.1.visibility == Visibility::Public;
+    let ret_304;
+    let latest_updated = x.iter()
+        .filter(only_public)
+        .filter(additional_filter.clone())
+        .max_by_key(|r| r.1.updated_at)
+        .map(|x| &x.1).map(|x| x.updated_at);
+
+    if let Some(if_modified_since) = if_modified_since {
+        let if_unmodified_since = if_modified_since.0.0;
+        ret_304 = latest_updated.map(|d| d >= if_unmodified_since).unwrap_or(false);
+    } else {
+        ret_304 = false;
+    }
+
+    let id = ArticleIdSet(x.iter().filter(only_public).filter(additional_filter.clone())
+        .map(|x| &x.0).cloned().collect());
+    let old_cre = x.iter().filter(only_public).filter(additional_filter.clone())
+        .min_by_key(|x| x.1.created_at).map(|x| x.1.created_at);
+    let new_upd = x.iter().filter(only_public).filter(additional_filter)
+        .max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at);
+
+    ArticleIdCollectionResponseRepr(
+        MaybeNotModified {
+            inner: ReportLastModofied {
+                inner: OwnedMetadata {
+                    metadata: ArticleIdSetMetadata {
+                        oldest_created_at: old_cre,
+                        newest_updated_at: new_upd,
+                    },
+                    data: id
+                },
+                latest_updated: latest_updated.map(|x| x.into())
+            },
+            is_modified: ret_304,
+        }
+    )
+}
+
+const ONCE_CELL_INITIALIZATION_ERROR: &str = "must be fully initialized";
 
 #[get("/article")]
 #[allow(clippy::unused_async)]
-pub async fn article_id_list() -> impl Responder {
-    // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
-
-    let id = ArticleIdSet(x.iter().filter(|x| x.1.visibility == Visibility::Public).map(|x| &x.0).cloned().collect());
-    let old_cre = x.iter().min_by_key(|x| x.1.created_at).map(|x| x.1.created_at);
-    let new_upd = x.iter().max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at);
-
-    EndpointRepresentationCompiler::from_value(
-        ArticleIdCollectionResponseRepr(OwnedMetadata {
-            metadata: ArticleIdSetMetadata {
-                oldest_created_at: old_cre,
-                newest_updated_at: new_upd,
-            },
-            data: id
-        })
+pub fn article_id_list(if_modified_since: Option<IfModifiedSince>) -> impl Future<Output = impl Responder> {
+    let v = EndpointRepresentationCompiler::from_value(
+        article_id_list0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
-        .map_into_boxed_body()
+        .map_into_boxed_body();
+
+    ready(v)
+}
+
+fn article_id_list0(repo: &ArticleRepository, if_modified_since: Option<IfModifiedSince>) -> ArticleIdCollectionResponseRepr {
+    compute_and_filter_out(repo, if_modified_since, |_| true)
 }
 
 #[get("/article/{year}")]
 #[allow(clippy::unused_async)]
-pub async fn article_id_list_by_year(path: Path<AnnoDominiYear>) -> impl Responder {
-    let year = path.into_inner();
-    // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let f = |a: &Article| a.created_at.year() == year.into_inner() as i32 && a.visibility == Visibility::Public;
-    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
-
-    let (matched_article_id_set, oldest_creation, most_recent_update) = (
-        ArticleIdSet(
-            x.iter().filter(|x| f(&x.1)).map(|x| &x.0).cloned().collect()
-        ),
-        x.iter().filter(|x| f(&x.1)).min_by_key(|x| x.1.created_at).map(|x| x.1.created_at),
-        x.iter().filter(|x| f(&x.1)).max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at),
-    );
-
-    EndpointRepresentationCompiler::from_value(
-        ArticleIdCollectionResponseRepr(OwnedMetadata {
-            metadata: ArticleIdSetMetadata {
-                oldest_created_at: oldest_creation,
-                newest_updated_at: most_recent_update,
-            },
-            data: matched_article_id_set
-        })
+pub fn article_id_list_by_year(path: Path<AnnoDominiYear>, if_modified_since: Option<IfModifiedSince>) -> impl Future<Output = impl Responder> {
+    let v = EndpointRepresentationCompiler::from_value(
+        article_id_list_by_year0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
-        .map_into_boxed_body()
+        .map_into_boxed_body();
+
+    ready(v)
+}
+
+fn article_id_list_by_year0(repo: &ArticleRepository, path: AnnoDominiYear, if_modified_since: Option<IfModifiedSince>) -> ArticleIdCollectionResponseRepr {
+    let year = path.into_inner();
+    compute_and_filter_out(repo, if_modified_since, |x| x.1.created_at.year() as u32 == year)
 }
 
 #[get("/article/{year}/{month}")]
-#[allow(clippy::unused_async)]
-pub async fn article_id_list_by_year_and_month(
-    path: Path<(AnnoDominiYear, OneOriginTwoDigitsMonth)>
-) -> impl Responder {
-    let (year, month) = path.into_inner();
-    let f = |a: &Article| {
-        #[allow(clippy::cast_possible_wrap)] // effectively FP, AnnoDominiYear is <= 2147483647; are we going to use this product even if after that? ;)
-            let filter_year = a.created_at.year() == year.into_inner() as i32;
-        // SAFETY: `month()` returns 1..=12, which is subset of possible u8 value.
-        let article_created_month = unsafe {
-            u8::try_from(a.created_at.month()).unwrap_unchecked()
-        };
-        let filter_month = article_created_month == month.into_inner();
-
-        filter_year && filter_month && a.visibility == Visibility::Public
-    };
-    // TODO: DBに切り替えたら、ヘッダーを受け取るようにし、DB上における最大値と最小値を確認して条件次第で304を返すようにする
-    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
-
-    let (matched_article_id_set, oldest_creation, most_recent_update) = (
-        ArticleIdSet(
-            x.iter().filter(|x| f(&x.1)).map(|x| &x.0).cloned().collect()
-        ),
-        x.iter().filter(|x| f(&x.1)).min_by_key(|x| x.1.created_at).map(|x| x.1.created_at),
-        x.iter().filter(|x| f(&x.1)).max_by_key(|x| x.1.updated_at).map(|x| x.1.updated_at),
-    );
-
-    EndpointRepresentationCompiler::from_value(
-        ArticleIdCollectionResponseRepr(OwnedMetadata {
-            metadata: ArticleIdSetMetadata {
-                oldest_created_at: oldest_creation,
-                newest_updated_at: most_recent_update,
-            },
-            data: matched_article_id_set
-        })
+pub fn article_id_list_by_year_and_month(
+    path: Path<(AnnoDominiYear, OneOriginTwoDigitsMonth)>, if_modified_since: Option<IfModifiedSince>
+) -> impl Future<Output = impl Responder> {
+    let v = EndpointRepresentationCompiler::from_value(
+        article_id_list_by_year_and_month0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
-        .map_into_boxed_body()
+        .map_into_boxed_body();
+
+    ready(v)
+}
+
+fn article_id_list_by_year_and_month0(repo: &ArticleRepository, path: (AnnoDominiYear, OneOriginTwoDigitsMonth), if_modified_since: Option<IfModifiedSince>) 
+    -> ArticleIdCollectionResponseRepr {
+    let (year, month) = path;
+    let year = year.into_inner();
+    let month = month.into_inner();
+    compute_and_filter_out(repo, if_modified_since, |x| x.1.created_at.year() as u32 == year && x.1.created_at.month() as u8 == month)
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Datelike, Local};
+
+    use toy_blog_endpoint_model::{AnnoDominiYear, ArticleId, OneOriginTwoDigitsMonth, Visibility};
+
+    use crate::service::persistence::ArticleRepository;
+    use crate::service::rest::api::list::{article_id_list0, article_id_list_by_year0, article_id_list_by_year_and_month0};
+
+    #[test]
+    fn do_not_leak() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let a = ArticleRepository::new(m.path()).await;
+                {
+                    let aa = ArticleId::new("123".to_string());
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    let ac = article_id_list0(&a, None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none());
+                }
+                {
+                    let aa = ArticleId::new("1234".to_string());
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    let ac = article_id_list0(&a, None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none())
+                }
+            });
+    }
+
+    #[test]
+    fn do_not_leak_by_year() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let a = ArticleRepository::new(m.path()).await;
+                {
+                    let aa = ArticleId::new("123".to_string());
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none());
+                }
+                {
+                    let aa = ArticleId::new("1234".to_string());
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none())
+                }
+            });
+    }
+
+    #[test]
+    fn do_not_leak_by_year_and_month() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let a = ArticleRepository::new(m.path()).await;
+                {
+                    let aa = ArticleId::new("123".to_string());
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    let now = Local::now();
+                    let ac = article_id_list_by_year_and_month0(
+                        &a, (
+                            AnnoDominiYear::try_from(now.year() as u32).unwrap(),
+                            OneOriginTwoDigitsMonth::try_from(now.month() as u8).unwrap()
+                        ), None
+                    );
+                    let a = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(a.is_none());
+                }
+                {
+                    let aa = ArticleId::new("1235".to_string());
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    let now = Local::now();
+                    let ac = article_id_list_by_year_and_month0(
+                        &a, (
+                            AnnoDominiYear::try_from(now.year() as u32).unwrap(),
+                            OneOriginTwoDigitsMonth::try_from(now.month() as u8).unwrap()
+                        ), None
+                    );
+                    let a = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(a.is_none())
+                }
+            });
+    }
 }
