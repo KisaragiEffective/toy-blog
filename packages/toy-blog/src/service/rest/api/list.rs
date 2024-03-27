@@ -3,16 +3,18 @@ use actix_web::web::Path;
 use chrono::Datelike;
 
 use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleIdSet, ArticleIdSetMetadata, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
+use crate::service::persistence::ArticleRepository;
 
 use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, MaybeNotModified, ReportLastModofied};
 use crate::service::rest::header::IfModifiedSince;
 use crate::service::rest::repository::GLOBAL_FILE;
 
 fn compute_and_filter_out(
+    article_repository: &ArticleRepository,
     if_modified_since: Option<IfModifiedSince>,
     additional_filter: impl Clone + Fn(&&(ArticleId, Article)) -> bool
 ) -> ArticleIdCollectionResponseRepr {
-    let x = GLOBAL_FILE.get().expect("must be fully-initialized").entries();
+    let x = article_repository.entries();
     let only_public = |x: &&(ArticleId, Article)| x.1.visibility == Visibility::Public;
     let ret_304;
     let latest_updated = x.iter()
@@ -52,11 +54,13 @@ fn compute_and_filter_out(
     )
 }
 
+const ONCE_CELL_INITIALIZATION_ERROR: &str = "must be fully initialized";
+
 #[get("/article")]
 #[allow(clippy::unused_async)]
 pub async fn article_id_list(if_modified_since: Option<IfModifiedSince>) -> impl Responder {
     EndpointRepresentationCompiler::from_value(
-        compute_and_filter_out(if_modified_since, |_| true)
+        compute_and_filter_out(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since, |_| true)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
         .map_into_boxed_body()
@@ -67,7 +71,7 @@ pub async fn article_id_list(if_modified_since: Option<IfModifiedSince>) -> impl
 pub async fn article_id_list_by_year(path: Path<AnnoDominiYear>, if_modified_since: Option<IfModifiedSince>) -> impl Responder {
     let year = path.into_inner().into_inner();
     EndpointRepresentationCompiler::from_value(
-        compute_and_filter_out(if_modified_since, |x| x.1.created_at.year() as u32 == year)
+        compute_and_filter_out(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR),if_modified_since, |x| x.1.created_at.year() as u32 == year)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
         .map_into_boxed_body()
@@ -83,7 +87,7 @@ pub async fn article_id_list_by_year_and_month(
     let month = month.into_inner();
 
     EndpointRepresentationCompiler::from_value(
-        compute_and_filter_out(if_modified_since, |x| x.1.created_at.year() as u32 == year && x.1.created_at.month() as u8 == month)
+        compute_and_filter_out(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since, |x| x.1.created_at.year() as u32 == year && x.1.created_at.month() as u8 == month)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
         .map_into_boxed_body()
