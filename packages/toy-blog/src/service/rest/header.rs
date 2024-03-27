@@ -4,7 +4,7 @@ use std::str::FromStr;
 use actix_web::{FromRequest, HttpRequest};
 use actix_web::dev::Payload;
 use actix_web::http::header::{HeaderValue, ToStrError};
-use chrono::{DateTime, FixedOffset, ParseError, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, ParseError, TimeZone};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -62,7 +62,7 @@ impl TryFrom<&HeaderValue> for LastModified {
 
 impl FromRequest for LastModified {
     type Error = HttpDateExtractionError;
-    type Future = Ready<Result<LastModified, Self::Error>>;
+    type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         let w = req.headers().get("Last-Modified")
@@ -129,7 +129,7 @@ impl actix_web::ResponseError for HttpDateExtractionError {}
 mod tests {
     use std::str::FromStr;
     use chrono::{FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
-    use crate::service::rest::header::{HttpDate, LastModified};
+    use crate::service::rest::header::{HttpDate};
 
     #[test]
     fn rfc_7232_example_should_able_to_be_parsed() {

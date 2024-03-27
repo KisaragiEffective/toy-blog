@@ -26,7 +26,7 @@ impl ArticleRepository {
     // TODO: visible for test
     pub(super) fn create_default_file_if_absent(path: impl AsRef<Path>) {
         if !path.as_ref().exists() {
-            Self::init(path)
+            Self::init(path);
         }
     }
     
@@ -61,7 +61,7 @@ impl ArticleRepository {
 
     fn reconstruct_cache(&self) {
         if self.invalidated.load(Ordering::SeqCst) {
-            *self.cache.write().expect("cache lock is poisoned").deref_mut() =
+            *self.cache.write().expect("cache lock is poisoned") =
                 Self::parse_file_as_json_static(&mut self.file_lock.write().expect("poisoned")).expect("crash");
             self.invalidated.store(false, Ordering::SeqCst);
         }

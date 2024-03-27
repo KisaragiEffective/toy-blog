@@ -22,7 +22,7 @@ pub async fn change_id(query: Query<ChangeArticleIdRequestQuery>, bearer: Bearer
         }
 
         match GLOBAL_FILE.get().expect("must be fully-initialized").rename(&from, to) {
-            Ok(_) => {
+            Ok(()) => {
                 Ok(Ok(()))
             }
             Err(e) => {

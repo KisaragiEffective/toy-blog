@@ -26,7 +26,7 @@ trait SerdeJsonValueMoveExtension {
 impl SerdeJsonValueMoveExtension for Value {
     fn into_object(self) -> Result<Map<String, Value>, Value> {
         match self {
-            Value::Object(map) => Ok(map),
+            Self::Object(map) => Ok(map),
             other => Err(other),
         }
     }
@@ -109,7 +109,7 @@ impl ArticleMigration for AddAccessLevel {
     }
 }
 
-pub(crate) fn migrate_article_repr(raw_article_table: Value) -> Value {
+pub fn migrate_article_repr(raw_article_table: Value) -> Value {
     info!("migration: start");
     let raw_article_table = AddTagVersion.migrate(raw_article_table);
 
