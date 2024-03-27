@@ -30,7 +30,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
 
         let path = ArticleId::new(path.into_inner());
         info!("create");
-        if x_get().exists(&path).await.unwrap() {
+        if x_get().exists(&path) {
             return Ok(Err(CreateArticleError::DuplicatedArticleId))
         }
 
@@ -38,7 +38,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
         let Ok(text) = plain_text else { return Ok(Err(CreateArticleError::InvalidUtf8)) };
 
         info!("valid utf8");
-        let res = x_get().create_entry(&path, text.clone(), Visibility::Private).await;
+        let res = x_get().create_entry(&path, text.clone(), Visibility::Private);
         match res {
             Ok(()) => {}
             Err(err) => return Err(UnhandledError::new(err))
@@ -79,16 +79,13 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
     let res = || async {
         let article_id = ArticleId::new(path.into_inner());
 
-        let exists = match x_get().exists(&article_id).await {
-            Ok(exists) => exists,
-            Err(e) => return Res::Internal(UnhandledError::new(e))
-        };
+        let exists = x_get().exists(&article_id);
 
         if !exists {
             return Res::General(GetArticleError::NoSuchArticleFoundById)
         }
 
-        let content = match x_get().read_snapshot(&article_id).await {
+        let content = match x_get().read_snapshot(&article_id) {
             Ok(content) => content,
             Err(e) => return Res::Internal(UnhandledError::new(e))
         };
@@ -139,10 +136,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
 
         let article_id = ArticleId::new(path.into_inner());
 
-        let exists = match x_get().exists(&article_id).await {
-            Ok(exists) => exists,
-            Err(e) => return Err(UnhandledError::new(e))
-        };
+        let exists = x_get().exists(&article_id);
 
         if !exists {
             return Ok(Err(UpdateArticleError::ArticleNotFoundById))
@@ -153,7 +147,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
             Err(e) => return Ok(Err(UpdateArticleError::InvalidByteSequenceForUtf8(e)))
         };
 
-        match x_get().update_entry(&article_id, data).await {
+        match x_get().update_entry(&article_id, data) {
             Ok(()) => {
                 Ok(Ok(()))
             }
@@ -177,16 +171,13 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
             return Ok(Err(DeleteArticleError::InvalidBearerToken))
         }
 
-        let exists = match x_get().exists(&article_id).await {
-            Ok(exists) => exists,
-            Err(err) => return Err(UnhandledError::new(err))
-        };
+        let exists = x_get().exists(&article_id);
 
         if !exists {
             return Ok(Err(DeleteArticleError::NoSuchArticleFoundById))
         }
 
-        match x_get().remove(&article_id).await {
+        match x_get().remove(&article_id) {
             Ok(()) => {
                 Ok(Ok(()))
             }
@@ -209,17 +200,14 @@ pub async fn update_visibility(path: Path<String>, payload: Json<UpdateVisibilit
             return Ok(Err(DeleteArticleError::InvalidBearerToken))
         }
 
-        let exists = match x_get().exists(&article_id).await {
-            Ok(exists) => exists,
-            Err(err) => return Err(UnhandledError::new(err))
-        };
+        let exists = x_get().exists(&article_id);
 
         if !exists {
             return Ok(Err(DeleteArticleError::NoSuchArticleFoundById))
         }
 
         let new_visibility = payload.visibility;
-        match x_get().change_visibility(&article_id, new_visibility).await {
+        match x_get().change_visibility(&article_id, new_visibility) {
             Ok(()) => {
                 Ok(Ok(()))
             }

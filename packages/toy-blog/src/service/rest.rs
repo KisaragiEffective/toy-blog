@@ -61,14 +61,13 @@ async fn migrate_and_load(path: impl AsRef<Path>) -> ArticleRepository {
 }
 
 pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool) -> Result<(), anyhow::Error> {
+    const PATH: &str = "data/article.json";
+
     let bearer_token = {
         let mut buf = String::new();
         stdin().read_line(&mut buf).expect("failed to read from stdin");
         buf.trim_end().to_string()
     };
-
-    const PATH: &str = "data/article.json";
-
     // migration
 
     let repo = migrate_and_load(PATH).await;

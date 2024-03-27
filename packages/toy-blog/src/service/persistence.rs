@@ -79,7 +79,7 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub async fn create_entry(&self, article_id: &ArticleId, article_content: String, visibility: Visibility) -> Result<(), PersistenceError> {
+    pub fn create_entry(&self, article_id: &ArticleId, article_content: String, visibility: Visibility) -> Result<(), PersistenceError> {
         self.invalidate();
 
         let current_date = Local::now();
@@ -106,26 +106,27 @@ impl ArticleRepository {
             .collect()
     }
 
-    pub async fn update_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
+    pub fn update_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
         self.invalidate();
+        // the lint suggestion causes borrow-to-temporary error
+        #[allow(clippy::significant_drop_tightening)]
+        let mut m = self.cache.write().expect("cache is poisoned");
+        #[allow(clippy::significant_drop_tightening)]
+        let find = m.data.get_mut(article_id);
+        let Some(article) = find else {
+            return Err(PersistenceError::AbsentValue)
+        };
 
-        match self.cache.write().expect("cache is poisoned").data.get_mut(article_id) {
-            None => {
-                return Err(PersistenceError::AbsentValue)
-            }
-            Some(article) => {
-                let current_date = Local::now();
-                article.updated_at = current_date;
-                article.content = article_content;
-            }
-        }
+        let current_date = Local::now();
+        article.updated_at = current_date;
+        article.content = article_content;
 
         self.save()?;
         Ok(())
     }
 
     // TODO: there's bug that the engine cannot change its visibility.
-    pub async fn change_visibility(&self, article_id: &ArticleId, new_visibility: Visibility) -> Result<(), PersistenceError> {
+    pub fn change_visibility(&self, article_id: &ArticleId, new_visibility: Visibility) -> Result<(), PersistenceError> {
         info!("calling change_visibility");
         self.invalidate();
 
@@ -137,7 +138,7 @@ impl ArticleRepository {
         Ok(())
     }
 
-    pub async fn read_snapshot(&self, article_id: &ArticleId) -> Result<Article, PersistenceError> {
+    pub fn read_snapshot(&self, article_id: &ArticleId) -> Result<Article, PersistenceError> {
         self.reconstruct_cache();
 
         let article = self.cache.read().expect("cache is poisoned").deref().data
@@ -148,15 +149,13 @@ impl ArticleRepository {
         Ok(article)
     }
 
-    pub async fn exists(&self, article_id: &ArticleId) -> Result<bool, PersistenceError> {
+    pub fn exists(&self, article_id: &ArticleId) -> bool {
         self.reconstruct_cache();
 
-        let contains = self.cache.read().expect("cache is poisoned").deref().data.contains_key(article_id);
-
-        Ok(contains)
+        self.cache.read().expect("cache is poisoned").deref().data.contains_key(article_id)
     }
 
-    pub async fn remove(&self, article_id: &ArticleId) -> Result<(), PersistenceError> {
+    pub fn remove(&self, article_id: &ArticleId) -> Result<(), PersistenceError> {
         info!("calling remove");
 
         self.invalidate();
@@ -196,11 +195,12 @@ impl ArticleRepository {
         if not_found_old_id {
             let x = exclusive_dummy_atomic_guard.data.remove(old_id);
 
-            if let Some(old_article) = x {
-                exclusive_dummy_atomic_guard.data.insert(new_id, old_article);
-            } else {
-                return Err(PersistenceError::AbsentValue)
-            }
+            let Some(old_article) = x else {
+                return Err(PersistenceError::AbsentValue);
+            };
+
+            exclusive_dummy_atomic_guard.data.insert(new_id, old_article);
+            drop(exclusive_dummy_atomic_guard);
         }
 
         self.save()?;
@@ -338,8 +338,8 @@ mod tests {
                 let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
                 ArticleRepository::init(m.path());
                 let temp_repo = ArticleRepository::new(m.path()).await;
-                temp_repo.create_entry(&ArticleId::new("12345".to_string()), "12345 Hello".to_string(), Visibility::Private).await.expect("failed to save");
-                temp_repo.create_entry(&ArticleId::new("23456".to_string()), "23456 Hello".to_string(), Visibility::Private).await.expect("failed to save");
+                temp_repo.create_entry(&ArticleId::new("12345".to_string()), "12345 Hello".to_string(), Visibility::Private).expect("failed to save");
+                temp_repo.create_entry(&ArticleId::new("23456".to_string()), "23456 Hello".to_string(), Visibility::Private).expect("failed to save");
                 drop(temp_repo);
                 let temp_repo = ArticleRepository::new(m.path()).await;
                 let y = temp_repo.entries().iter().find(|x| x.0 == ArticleId::new("12345".to_string())).expect("12345").1.content == "12345 Hello";

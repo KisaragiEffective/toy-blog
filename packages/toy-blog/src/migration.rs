@@ -78,6 +78,7 @@ impl ArticleMigration for AddAccessLevel {
         let mut top = raw_config
             .into_object().expect("top level must be an object");
 
+        #[allow(clippy::cast_possible_truncation)]
         let version = match &top["version"] {
             Value::Number(n) => n.as_u64().expect("schema version must be fit in u64") as i32,
             Value::String(s) => s.parse::<i32>().expect("schema version must be fit in i32"),
