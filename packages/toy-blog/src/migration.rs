@@ -84,7 +84,7 @@ impl ArticleMigration for AddAccessLevel {
 
         top.insert("version".to_string(), Value::from(2));
 
-        let mut article_table = top
+        let article_table = top
             .get_mut("data").expect("article must exist")
             .as_object_mut().expect("article table must be object");
 
@@ -103,7 +103,10 @@ impl ArticleMigration for AddAccessLevel {
 }
 
 pub(crate) fn migrate_article_repr(raw_article_table: Value) -> Value {
+    info!("migration: start");
     let raw_article_table = AddTagVersion.migrate(raw_article_table);
 
-    AddAccessLevel.migrate(raw_article_table)
+    let last = AddAccessLevel.migrate(raw_article_table);
+    info!("migration: finished");
+    last
 }
