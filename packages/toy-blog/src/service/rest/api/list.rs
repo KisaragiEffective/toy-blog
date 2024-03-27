@@ -49,7 +49,7 @@ fn compute_and_filter_out(
                     },
                     data: id
                 },
-                latest_updated: latest_updated.map(std::convert::Into::into)
+                latest_updated: latest_updated.map(|x| x.try_into().unwrap())
             },
             is_modified: ret_304,
         }
@@ -86,6 +86,7 @@ pub fn article_id_list_by_year(path: Path<AnnoDominiYear>, if_modified_since: Op
     ready(v)
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn article_id_list_by_year0(repo: &ArticleRepository, path: AnnoDominiYear, if_modified_since: Option<IfModifiedSince>) -> ArticleIdCollectionResponseRepr {
     let year = path.into_inner();
     compute_and_filter_out(repo, if_modified_since, |x| x.1.created_at.year() as u32 == year)
@@ -104,6 +105,7 @@ pub fn article_id_list_by_year_and_month(
     ready(v)
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn article_id_list_by_year_and_month0(repo: &ArticleRepository, path: (AnnoDominiYear, OneOriginTwoDigitsMonth), if_modified_since: Option<IfModifiedSince>) 
     -> ArticleIdCollectionResponseRepr {
     let (year, month) = path;
@@ -133,14 +135,14 @@ mod tests {
                 let a = ArticleRepository::new(m.path()).await;
                 {
                     let aa = ArticleId::new("123".to_string());
-                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).unwrap();
                     let ac = article_id_list0(&a, None);
                     let m = ac.0.inner.inner.data.0.get(&aa);
                     assert!(m.is_none());
                 }
                 {
                     let aa = ArticleId::new("1234".to_string());
-                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).unwrap();
                     let ac = article_id_list0(&a, None);
                     let m = ac.0.inner.inner.data.0.get(&aa);
                     assert!(m.is_none());
@@ -160,14 +162,14 @@ mod tests {
                 let a = ArticleRepository::new(m.path()).await;
                 {
                     let aa = ArticleId::new("123".to_string());
-                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).unwrap();
                     let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
                     let m = ac.0.inner.inner.data.0.get(&aa);
                     assert!(m.is_none());
                 }
                 {
                     let aa = ArticleId::new("1234".to_string());
-                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).unwrap();
                     let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
                     let m = ac.0.inner.inner.data.0.get(&aa);
                     assert!(m.is_none());
@@ -187,7 +189,7 @@ mod tests {
                 let a = ArticleRepository::new(m.path()).await;
                 {
                     let aa = ArticleId::new("123".to_string());
-                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).unwrap();
                     let now = Local::now();
                     let ac = article_id_list_by_year_and_month0(
                         &a, (
@@ -200,7 +202,7 @@ mod tests {
                 }
                 {
                     let aa = ArticleId::new("1235".to_string());
-                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).unwrap();
                     let now = Local::now();
                     let ac = article_id_list_by_year_and_month0(
                         &a, (

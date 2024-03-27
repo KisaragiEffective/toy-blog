@@ -3,6 +3,7 @@
 // This fires on HttpRequest, which is not FP.
 // But we don't want to be triggered because service function often refers it.
 #![allow(clippy::future_not_send)]
+#![deny(clippy::fallible_impl_from)]
 
 mod extension;
 mod service;
@@ -47,7 +48,7 @@ async fn main() -> Result<()> {
             crate::service::rest::boot_http_server(http_port, &http_host, cloudflare_support).await
         }
         Commands::Import { file_path, article_id } => {
-            crate::service::import::import(&file_path, &article_id).await
+            crate::service::import::import(&file_path, &article_id)
         }
         Commands::Version { plain } => {
             const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -6,7 +6,7 @@ use log::{debug, info};
 use toy_blog_endpoint_model::{ArticleId, Visibility};
 use crate::service::rest::repository::GLOBAL_FILE;
 
-pub async fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyhow::Error> {
+pub fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyhow::Error> {
     if !file_path.exists() {
         bail!("You can not import non-existent file")
     }
@@ -28,7 +28,7 @@ pub async fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyh
 
     match content {
         Ok(content) => {
-            GLOBAL_FILE.get().expect("must be fully-initialized").create_entry(article_id, content, Visibility::Private).await?;
+            GLOBAL_FILE.get().expect("must be fully-initialized").create_entry(article_id, content, Visibility::Private)?;
             info!("Successfully imported as {article_id}.");
             Ok(())
         }

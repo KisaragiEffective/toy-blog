@@ -37,9 +37,11 @@ impl TryFrom<&str> for HttpDate {
     }
 }
 
-impl<Tz: TimeZone> From<DateTime<Tz>> for HttpDate {
-    fn from(value: DateTime<Tz>) -> Self {
-        Self(value.with_timezone(&FixedOffset::east_opt(0).unwrap()))
+impl<Tz: TimeZone> TryFrom<DateTime<Tz>> for HttpDate {
+    type Error = ();
+
+    fn try_from(value: DateTime<Tz>) -> Result<Self, Self::Error> {
+        FixedOffset::east_opt(0).map(|x| value.with_timezone(&x)).map(Self).ok_or(())
     }
 }
 
