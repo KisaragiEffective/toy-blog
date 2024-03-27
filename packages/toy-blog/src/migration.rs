@@ -78,7 +78,14 @@ impl ArticleMigration for AddAccessLevel {
         let mut top = raw_config
             .into_object().expect("top level must be an object");
 
-        if top["version"].as_str().expect("version must be string").parse::<i32>().expect("schema version must be fit in i32") >= 2 {
+        let version = match &top["version"] {
+            Value::Number(n) => n.as_u64().expect("schema version must be fit in u64") as i32,
+            Value::String(s) => s.parse::<i32>().expect("schema version must be fit in i32"),
+            otherwise => panic!("version must be number or string, but got {otherwise}")
+        };
+        
+        
+        if version >= 2 {
             return Value::from(top)
         }
 
@@ -109,4 +116,32 @@ pub(crate) fn migrate_article_repr(raw_article_table: Value) -> Value {
     let last = AddAccessLevel.migrate(raw_article_table);
     info!("migration: finished");
     last
+}
+
+#[cfg(test)]
+mod tests {
+    // TODO: arbitrary data
+    use serde_json::json;
+    use crate::migration::{AddAccessLevel, ArticleMigration};
+
+    #[test]
+    fn aal_early_return() {
+        let a = json!({"version": 2, "data": {}});
+        let b = AddAccessLevel.migrate(a);
+        assert_eq!(b, json!({"version": 2, "data": {}}));
+    }
+
+    #[test]
+    fn aal_add_visibility() {
+        let a = json!({"version": "1", "data": { "a": { "some_random_data_here": 42 } }});
+        let b = AddAccessLevel.migrate(a);
+        assert_eq!(b, json!({"version": 2, "data": { "a": { "some_random_data_here": 42, "visibility": "public" } }}));
+    }
+    
+    #[test]
+    fn aal_do_not_destroy_visibility() {
+        let a = json!({"version": 2, "data": { "a": { "some_random_data_here": 42, "visibility": "private" } }});
+        let b = AddAccessLevel.migrate(a);
+        assert_eq!(b, json!({"version": 2, "data": { "a": { "some_random_data_here": 42, "visibility": "private" } }}));
+    }
 }
