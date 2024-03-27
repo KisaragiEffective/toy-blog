@@ -4,6 +4,7 @@
 use std::collections::HashSet;
 use std::convert::Infallible;
 use std::fmt::{Display, Formatter};
+use std::num::{NonZeroU32, NonZeroU8};
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use chrono::{DateTime, FixedOffset, Local};
@@ -180,20 +181,28 @@ pub struct ArticleIdSetMetadata {
 }
 
 #[derive(Deserialize, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct AnnoDominiYear(u32);
+pub struct AnnoDominiYear(NonZeroU32);
 
 impl AnnoDominiYear {
     #[must_use] pub const fn into_inner(self) -> u32 {
-        self.0
+        self.0.get()
+    }
+}
+
+impl TryFrom<u32> for AnnoDominiYear {
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        value.try_into().map(Self).map_err(|_| ())
     }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct OneOriginTwoDigitsMonth(u8);
+pub struct OneOriginTwoDigitsMonth(NonZeroU8);
 
 impl OneOriginTwoDigitsMonth {
     #[must_use] pub const fn into_inner(self) -> u8 {
-        self.0
+        self.0.get()
     }
 }
 
@@ -202,7 +211,8 @@ impl TryFrom<u8> for OneOriginTwoDigitsMonth {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if (1..=12).contains(&value) {
-            Ok(Self(value))
+            // I believe rustc optimize unwind branch away, because its infallible.
+            Ok(Self(value.try_into().unwrap()))
         } else {
             Err(())
         }
@@ -213,23 +223,25 @@ impl FromStr for OneOriginTwoDigitsMonth {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let try_new = |a| Self::try_from(a);
+
         let v = match s {
-            "01" => Self(1),
-            "02" => Self(2),
-            "03" => Self(3),
-            "04" => Self(4),
-            "05" => Self(5),
-            "06" => Self(6),
-            "07" => Self(7),
-            "08" => Self(8),
-            "09" => Self(9),
-            "10" => Self(10),
-            "11" => Self(11),
-            "12" => Self(12),
+            "01" => try_new(1),
+            "02" => try_new(2),
+            "03" => try_new(3),
+            "04" => try_new(4),
+            "05" => try_new(5),
+            "06" => try_new(6),
+            "07" => try_new(7),
+            "08" => try_new(8),
+            "09" => try_new(9),
+            "10" => try_new(10),
+            "11" => try_new(11),
+            "12" => try_new(12),
             _ => return Err(())
         };
 
-        Ok(v)
+        v
     }
 }
 

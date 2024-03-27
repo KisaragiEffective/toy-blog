@@ -1,10 +1,12 @@
+use std::future::{Future, ready};
+
 use actix_web::{get, Responder};
 use actix_web::web::Path;
 use chrono::Datelike;
 
 use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleIdSet, ArticleIdSetMetadata, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
-use crate::service::persistence::ArticleRepository;
 
+use crate::service::persistence::ArticleRepository;
 use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, MaybeNotModified, ReportLastModofied};
 use crate::service::rest::header::IfModifiedSince;
 use crate::service::rest::repository::GLOBAL_FILE;
@@ -58,37 +60,157 @@ const ONCE_CELL_INITIALIZATION_ERROR: &str = "must be fully initialized";
 
 #[get("/article")]
 #[allow(clippy::unused_async)]
-pub async fn article_id_list(if_modified_since: Option<IfModifiedSince>) -> impl Responder {
-    EndpointRepresentationCompiler::from_value(
-        compute_and_filter_out(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since, |_| true)
+pub fn article_id_list(if_modified_since: Option<IfModifiedSince>) -> impl Future<Output = impl Responder> {
+    let v = EndpointRepresentationCompiler::from_value(
+        article_id_list0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
-        .map_into_boxed_body()
+        .map_into_boxed_body();
+
+    ready(v)
+}
+
+fn article_id_list0(repo: &ArticleRepository, if_modified_since: Option<IfModifiedSince>) -> ArticleIdCollectionResponseRepr {
+    compute_and_filter_out(repo, if_modified_since, |_| true)
 }
 
 #[get("/article/{year}")]
 #[allow(clippy::unused_async)]
-pub async fn article_id_list_by_year(path: Path<AnnoDominiYear>, if_modified_since: Option<IfModifiedSince>) -> impl Responder {
-    let year = path.into_inner().into_inner();
-    EndpointRepresentationCompiler::from_value(
-        compute_and_filter_out(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR),if_modified_since, |x| x.1.created_at.year() as u32 == year)
+pub fn article_id_list_by_year(path: Path<AnnoDominiYear>, if_modified_since: Option<IfModifiedSince>) -> impl Future<Output = impl Responder> {
+    let v = EndpointRepresentationCompiler::from_value(
+        article_id_list_by_year0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
-        .map_into_boxed_body()
+        .map_into_boxed_body();
+
+    ready(v)
+}
+
+fn article_id_list_by_year0(repo: &ArticleRepository, path: AnnoDominiYear, if_modified_since: Option<IfModifiedSince>) -> ArticleIdCollectionResponseRepr {
+    let year = path.into_inner();
+    compute_and_filter_out(repo, if_modified_since, |x| x.1.created_at.year() as u32 == year)
 }
 
 #[get("/article/{year}/{month}")]
-#[allow(clippy::unused_async)]
-pub async fn article_id_list_by_year_and_month(
+pub fn article_id_list_by_year_and_month(
     path: Path<(AnnoDominiYear, OneOriginTwoDigitsMonth)>, if_modified_since: Option<IfModifiedSince>
-) -> impl Responder {
-    let (year, month) = path.into_inner();
-    let year = year.into_inner();
-    let month = month.into_inner();
-
-    EndpointRepresentationCompiler::from_value(
-        compute_and_filter_out(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since, |x| x.1.created_at.year() as u32 == year && x.1.created_at.month() as u8 == month)
+) -> impl Future<Output = impl Responder> {
+    let v = EndpointRepresentationCompiler::from_value(
+        article_id_list_by_year_and_month0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
-        .map_into_boxed_body()
+        .map_into_boxed_body();
+
+    ready(v)
+}
+
+fn article_id_list_by_year_and_month0(repo: &ArticleRepository, path: (AnnoDominiYear, OneOriginTwoDigitsMonth), if_modified_since: Option<IfModifiedSince>) 
+    -> ArticleIdCollectionResponseRepr {
+    let (year, month) = path;
+    let year = year.into_inner();
+    let month = month.into_inner();
+    compute_and_filter_out(repo, if_modified_since, |x| x.1.created_at.year() as u32 == year && x.1.created_at.month() as u8 == month)
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Datelike, Local};
+
+    use toy_blog_endpoint_model::{AnnoDominiYear, ArticleId, OneOriginTwoDigitsMonth, Visibility};
+
+    use crate::service::persistence::ArticleRepository;
+    use crate::service::rest::api::list::{article_id_list0, article_id_list_by_year0, article_id_list_by_year_and_month0};
+
+    #[test]
+    fn do_not_leak() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let a = ArticleRepository::new(m.path()).await;
+                {
+                    let aa = ArticleId::new("123".to_string());
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    let ac = article_id_list0(&a, None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none());
+                }
+                {
+                    let aa = ArticleId::new("1234".to_string());
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    let ac = article_id_list0(&a, None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none())
+                }
+            });
+    }
+
+    #[test]
+    fn do_not_leak_by_year() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let a = ArticleRepository::new(m.path()).await;
+                {
+                    let aa = ArticleId::new("123".to_string());
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none());
+                }
+                {
+                    let aa = ArticleId::new("1234".to_string());
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
+                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(m.is_none())
+                }
+            });
+    }
+
+    #[test]
+    fn do_not_leak_by_year_and_month() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let m = tempfile::NamedTempFile::new().expect("failed to initialize temporary file");
+                ArticleRepository::init(m.path());
+                let a = ArticleRepository::new(m.path()).await;
+                {
+                    let aa = ArticleId::new("123".to_string());
+                    a.create_entry(&aa, "12345".to_string(), Visibility::Private).await.unwrap();
+                    let now = Local::now();
+                    let ac = article_id_list_by_year_and_month0(
+                        &a, (
+                            AnnoDominiYear::try_from(now.year() as u32).unwrap(),
+                            OneOriginTwoDigitsMonth::try_from(now.month() as u8).unwrap()
+                        ), None
+                    );
+                    let a = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(a.is_none());
+                }
+                {
+                    let aa = ArticleId::new("1235".to_string());
+                    a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
+                    let now = Local::now();
+                    let ac = article_id_list_by_year_and_month0(
+                        &a, (
+                            AnnoDominiYear::try_from(now.year() as u32).unwrap(),
+                            OneOriginTwoDigitsMonth::try_from(now.month() as u8).unwrap()
+                        ), None
+                    );
+                    let a = ac.0.inner.inner.data.0.get(&aa);
+                    assert!(a.is_none())
+                }
+            });
+    }
 }
