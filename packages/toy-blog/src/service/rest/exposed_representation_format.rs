@@ -498,7 +498,7 @@ impl<Repr: ContainsHeaderMap> ContainsHeaderMap for ReportLastModofied<Repr> {
             )
         });
         
-        existing.chain(to_be_chained.into_iter())
+        existing.chain(to_be_chained)
     }
 }
 
