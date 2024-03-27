@@ -283,7 +283,7 @@ impl IntoPlainText for GetArticleResult {
 impl HttpStatusCode for UpdateArticleResult {
     fn call_status_code(&self) -> StatusCode {
         match self {
-            Ok(_) => StatusCode::NO_CONTENT,
+            Ok(()) => StatusCode::NO_CONTENT,
             Err(e) => {
                 match e {
                     UpdateArticleError::InvalidBearerToken => StatusCode::UNAUTHORIZED,
@@ -306,7 +306,7 @@ impl ContainsHeaderMap for UpdateArticleResult {
 impl IntoPlainText for UpdateArticleResult {
     fn into_plain_text(self) -> String {
         match self {
-            Ok(_) => {
+            Ok(()) => {
                 "saved".to_string()
             }
             Err(e) => {
@@ -323,7 +323,7 @@ impl IntoPlainText for UpdateArticleResult {
 impl HttpStatusCode for DeleteArticleResult {
     fn call_status_code(&self) -> StatusCode {
         match self {
-            Ok(_) => StatusCode::NO_CONTENT,
+            Ok(()) => StatusCode::NO_CONTENT,
             Err(e) => {
                 match e {
                     DeleteArticleError::InvalidBearerToken => StatusCode::UNAUTHORIZED,
@@ -345,7 +345,7 @@ impl ContainsHeaderMap for DeleteArticleResult {
 impl IntoPlainText for DeleteArticleResult {
     fn into_plain_text(self) -> String {
         match self {
-            Ok(_) => "deleted".to_string(),
+            Ok(()) => "deleted".to_string(),
             Err(e) => {
                 match e {
                     DeleteArticleError::InvalidBearerToken => "You must be authorized to perform this action.".to_string(),
@@ -404,7 +404,7 @@ impl ContainsHeaderMap for ListArticleResult {
 impl HttpStatusCode for ChangeArticleIdRequestResult {
     fn call_status_code(&self) -> StatusCode {
         match self {
-            Ok(_) => StatusCode::NO_CONTENT,
+            Ok(()) => StatusCode::NO_CONTENT,
             Err(e) => {
                 match e {
                     ChangeArticleIdError::Unauthorized => StatusCode::UNAUTHORIZED,
@@ -426,7 +426,7 @@ impl ContainsHeaderMap for ChangeArticleIdRequestResult {
 impl IntoPlainText for ChangeArticleIdRequestResult {
     fn into_plain_text(self) -> String {
         match self {
-            Ok(_) => {
+            Ok(()) => {
                 "The article was successfully renamed".to_string()
             }
             Err(e) => {

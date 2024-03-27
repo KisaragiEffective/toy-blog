@@ -51,10 +51,10 @@ impl Display for ArticleCreateWarning {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             Self::CurlSpecificNoNewLine =>
-                r#"There's no newlines. Perhaps you should use --data-binary instead?
+                r"There's no newlines. Perhaps you should use --data-binary instead?
 Note: `man curl(1)` said:
     > When -d, --data is told to read from a file like that, carriage
-    > returns and newlines  will  be stripped out."#
+    > returns and newlines  will  be stripped out."
         };
 
         f.write_str(s)
@@ -246,7 +246,7 @@ impl FromStr for OneOriginTwoDigitsMonth {
 impl<'de> Deserialize<'de> for OneOriginTwoDigitsMonth {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let s = String::deserialize(deserializer)?;
-        let x = s.parse().map_err(|_| D::Error::custom("bad value"))?;
+        let x = s.parse().map_err(|()| D::Error::custom("bad value"))?;
         
         Ok(x)
     }

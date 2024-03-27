@@ -40,7 +40,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
         info!("valid utf8");
         let res = x_get().create_entry(&path, text.clone(), Visibility::Private).await;
         match res {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(err) => return Err(UnhandledError::new(err))
         }
 
@@ -105,14 +105,14 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
         let uo = u.offset();
         let uu = u.with_timezone(uo);
 
-        (Res::Ok(OwnedMetadata {
+        Res::Ok(OwnedMetadata {
             metadata: ArticleSnapshotMetadata {
                 updated_at: uu
             },
             data: ArticleSnapshot {
                 content: ArticleContent::new(content.content)
             },
-        }))
+        })
     };
 
     let x = match res().await {
@@ -154,7 +154,7 @@ pub async fn update(path: Path<String>, data: Bytes, bearer: BearerAuth) -> impl
         };
 
         match x_get().update_entry(&article_id, data).await {
-            Ok(_) => {
+            Ok(()) => {
                 Ok(Ok(()))
             }
             Err(err) => {
@@ -187,7 +187,7 @@ pub async fn remove(path: Path<String>, bearer: BearerAuth) -> impl Responder {
         }
 
         match x_get().remove(&article_id).await {
-            Ok(_) => {
+            Ok(()) => {
                 Ok(Ok(()))
             }
             Err(err) => {
@@ -220,7 +220,7 @@ pub async fn update_visibility(path: Path<String>, payload: Json<UpdateVisibilit
 
         let new_visibility = payload.visibility;
         match x_get().change_visibility(&article_id, new_visibility).await {
-            Ok(_) => {
+            Ok(()) => {
                 Ok(Ok(()))
             }
             Err(err) => {

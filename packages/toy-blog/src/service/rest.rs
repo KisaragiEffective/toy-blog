@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::stdin;
 use std::path::Path;
 use actix_web::{App, HttpServer};
-use actix_web::dev::{ServiceFactory, ServiceRequest};
 use actix_web::middleware::Logger;
 use anyhow::Context;
 use log::info;

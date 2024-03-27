@@ -27,7 +27,7 @@ fn compute_and_filter_out(
 
     if let Some(if_modified_since) = if_modified_since {
         let if_unmodified_since = if_modified_since.0.0;
-        ret_304 = latest_updated.map(|d| d >= if_unmodified_since).unwrap_or(false);
+        ret_304 = latest_updated.is_some_and(|d| d >= if_unmodified_since);
     } else {
         ret_304 = false;
     }
@@ -49,7 +49,7 @@ fn compute_and_filter_out(
                     },
                     data: id
                 },
-                latest_updated: latest_updated.map(|x| x.into())
+                latest_updated: latest_updated.map(std::convert::Into::into)
             },
             is_modified: ret_304,
         }
@@ -143,7 +143,7 @@ mod tests {
                     a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
                     let ac = article_id_list0(&a, None);
                     let m = ac.0.inner.inner.data.0.get(&aa);
-                    assert!(m.is_none())
+                    assert!(m.is_none());
                 }
             });
     }
@@ -170,7 +170,7 @@ mod tests {
                     a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).await.unwrap();
                     let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
                     let m = ac.0.inner.inner.data.0.get(&aa);
-                    assert!(m.is_none())
+                    assert!(m.is_none());
                 }
             });
     }
@@ -209,7 +209,7 @@ mod tests {
                         ), None
                     );
                     let a = ac.0.inner.inner.data.0.get(&aa);
-                    assert!(a.is_none())
+                    assert!(a.is_none());
                 }
             });
     }
