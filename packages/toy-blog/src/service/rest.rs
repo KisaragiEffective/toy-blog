@@ -7,7 +7,9 @@ mod header;
 
 use std::fs::File;
 use std::io::stdin;
+use std::path::Path;
 use actix_web::{App, HttpServer};
+use actix_web::dev::{ServiceFactory, ServiceRequest};
 use actix_web::middleware::Logger;
 use anyhow::Context;
 use log::info;
@@ -38,6 +40,27 @@ mod inner_no_leak {
     }
 }
 
+async fn migrate_and_load(path: impl AsRef<Path>) -> ArticleRepository {
+    ArticleRepository::create_default_file_if_absent(path.as_ref());
+    {
+        #[allow(unused_qualifications)]
+            let migrated_data = crate::migration::migrate_article_repr(
+            serde_json::from_reader::<_, Value>(File::open(path.as_ref()).expect("failed to read existing config"))
+                .expect("failed to deserialize config")
+        );
+
+        info!("migrated");
+
+        serde_json::to_writer(
+            File::options().write(true).truncate(true).open(path.as_ref()).expect("failed to write over existing config"),
+            &migrated_data
+        )
+            .expect("failed to serialize config");
+    }
+
+    ArticleRepository::new(path.as_ref()).await
+}
+
 pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool) -> Result<(), anyhow::Error> {
     let bearer_token = {
         let mut buf = String::new();
@@ -49,27 +72,12 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
 
     // migration
 
-    {
-        #[allow(unused_qualifications)]
-            let migrated_data = crate::migration::migrate_article_repr(
-            serde_json::from_reader::<_, Value>(File::open(PATH).expect("failed to read existing config"))
-                .expect("failed to deserialize config")
-        );
-
-        info!("migrated");
-
-        serde_json::to_writer(
-            File::options().write(true).truncate(true).open(PATH).expect("failed to write over existing config"),
-            &migrated_data
-        )
-            .expect("failed to serialize config");
-    }
-
-    GLOBAL_FILE.set(ArticleRepository::new(PATH).await).expect("unreachable!");
-
+    let repo = migrate_and_load(PATH).await;
     WRITE_TOKEN.set(bearer_token).unwrap();
 
-    let http_server = HttpServer::new(move || {
+    // TODO: AppやHttpServerの型変数が記述できないため関数にくくり出せない
+    GLOBAL_FILE.set(repo).expect("unreachable!");
+    let http_server_closure = |proxied_by_cloudflare| {
         let logger_format = if proxied_by_cloudflare {
             r#"%a (CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#
         } else {
@@ -106,7 +114,9 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
             )
             .wrap(Logger::new(logger_format))
             .wrap(crate::service::rest::cors::middleware_factory())
-    });
+    };
+    
+    let http_server = HttpServer::new(move || http_server_closure(proxied_by_cloudflare));
 
     println!("running!");
     http_server
