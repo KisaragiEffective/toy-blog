@@ -1,5 +1,6 @@
 //! data migration
 
+use log::info;
 use serde_json::{Map, Value};
 use toy_blog_endpoint_model::Article;
 
@@ -73,8 +74,14 @@ impl ArticleMigration for AddAccessLevel {
             .get_mut("data").expect("article must exist")
             .as_object_mut().expect("article table must be object");
 
-        article_table.values_mut().for_each(|article| {
-            article.as_object_mut().expect("article").insert(name_of!(Article::visibility).to_string(), Value::from("public"));
+        article_table.iter_mut().for_each(|(key, article)| {
+            // すでに存在するならマイグレーションをスキップ
+            let article = article.as_object_mut().expect("article");
+            let field_to_add = name_of!(Article::visibility);
+            if !article.contains_key(field_to_add) {
+                info!("migration[AddAccess]: visibility of {key} is now public.");
+                article.insert(field_to_add.to_string(), Value::from("public"));
+            }
         });
 
         Value::from(top)
