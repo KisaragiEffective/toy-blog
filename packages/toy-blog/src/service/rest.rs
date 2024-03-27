@@ -3,6 +3,7 @@ mod cors;
 pub(in crate::service) mod repository;
 mod auth;
 mod exposed_representation_format;
+mod header;
 
 use std::fs::File;
 use std::io::stdin;
