@@ -45,7 +45,7 @@ impl<Tz: TimeZone> From<DateTime<Tz>> for HttpDate {
 
 impl Display for HttpDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.format(HTTP_DATE_FORMAT).to_string())
+        write!(f, "{}", self.0.format(HTTP_DATE_FORMAT))
     }
 }
 
