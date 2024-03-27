@@ -1,15 +1,19 @@
-#[cfg(test)]
-mod tests;
-
 use std::fmt::{Display, Formatter};
-use std::iter::{Empty, empty};
-use actix_web::HttpResponse;
+use std::iter::{Chain, Empty, empty};
+
 use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
+use actix_web::HttpResponse;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ArticleIdSet, ArticleIdSetMetadata, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
+
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleIdSet, ArticleIdSetMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
+
+use crate::service::rest::header::HttpDate;
 use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
+
+#[cfg(test)]
+mod tests;
 
 // TODO: give more precise name
 type Pair = (HeaderName, HeaderValueUpdateMethod);
@@ -435,7 +439,83 @@ impl IntoPlainText for ChangeArticleIdRequestResult {
     }
 }
 
-pub(super) struct ArticleIdCollectionResponseRepr(pub(super) OwnedMetadata<ArticleIdSetMetadata, ArticleIdSet>);
+pub(super) struct MaybeNotModified<Repr> {
+    pub(super) inner: Repr,
+    pub(super) is_modified: bool,
+}
+
+impl<Repr: HttpStatusCode> HttpStatusCode for MaybeNotModified<Repr> {
+    fn call_status_code(&self) -> StatusCode {
+        if self.is_modified {
+            StatusCode::NOT_MODIFIED
+        } else {
+            self.inner.call_status_code()
+        }
+    }
+}
+
+impl<Repr: ContainsHeaderMap> ContainsHeaderMap for MaybeNotModified<Repr> {
+    type Iterator = Repr::Iterator;
+
+    fn response_headers(&self) -> Self::Iterator {
+        self.inner.response_headers()
+    }
+}
+
+impl<Repr: IntoPlainText> IntoPlainText for MaybeNotModified<Repr> {
+    fn into_plain_text(self) -> String {
+        self.inner.into_plain_text()
+    }
+}
+
+impl<Repr: Serialize> Serialize for MaybeNotModified<Repr> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        self.inner.serialize(serializer)
+    }
+}
+
+pub(super) struct ReportLastModofied<Repr> {
+    pub(super) inner: Repr,
+    pub(super) latest_updated: Option<HttpDate>,
+}
+
+impl<Repr: HttpStatusCode> HttpStatusCode for ReportLastModofied<Repr> {
+    fn call_status_code(&self) -> StatusCode {
+        self.inner.call_status_code()
+    }
+}
+
+impl<Repr: ContainsHeaderMap> ContainsHeaderMap for ReportLastModofied<Repr> {
+    type Iterator = Chain<Repr::Iterator, core::option::IntoIter<Pair>>;
+
+    fn response_headers(&self) -> Self::Iterator {
+        let existing = self.inner.response_headers();
+        
+        let to_be_chained = self.latest_updated.as_ref().map(|date| {
+            (
+                HeaderName::from_static("Last-Updated"),
+                HeaderValueUpdateMethod::Append(HeaderValue::from_str(&date.to_string()).expect("bug: http date"))
+            )
+        });
+        
+        existing.chain(to_be_chained.into_iter())
+    }
+}
+
+impl<Repr: IntoPlainText> IntoPlainText for ReportLastModofied<Repr> {
+    fn into_plain_text(self) -> String {
+        self.inner.into_plain_text()
+    }
+}
+
+impl<Repr: Serialize> Serialize for ReportLastModofied<Repr> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        self.inner.serialize(serializer)
+    }
+}
+
+
+pub(super) struct ArticleIdCollectionResponseRepr(pub(super) MaybeNotModified<ReportLastModofied<OwnedMetadata<ArticleIdSetMetadata, ArticleIdSet>>>);
 
 impl HttpStatusCode for ArticleIdCollectionResponseRepr {
     fn call_status_code(&self) -> StatusCode {
@@ -451,7 +531,7 @@ impl ContainsHeaderMap for ArticleIdCollectionResponseRepr {
     >;
 
     fn response_headers(&self) -> Self::Iterator {
-        self.0.metadata.newest_updated_at.map_or(
+        self.0.inner.inner.metadata.newest_updated_at.map_or(
             EitherIter::Right(empty()),
             |newest| {
                 let date = HttpFormattedDate::new(newest.with_timezone(newest.offset()));
@@ -466,7 +546,7 @@ impl ContainsHeaderMap for ArticleIdCollectionResponseRepr {
 
 impl Serialize for ArticleIdCollectionResponseRepr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-        self.0.data.serialize(serializer)
+        self.0.inner.inner.data.serialize(serializer)
     }
 }
 
