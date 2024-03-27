@@ -47,6 +47,20 @@ impl ArticleMigration for AddTagVersion {
     }
 }
 
+/// フィールドの名前を静的に参照し、その名前をコンパイル時に確定する文字列リテラルへ焼く。
+/// 
+/// # Example
+/// 
+/// ```
+/// struct X {
+///     example: i32
+/// }
+/// 
+/// # fn main() {
+/// const Y: &str = name_of!(X::example);
+/// assert_eq!(Y, "example");
+/// # }
+/// ```
 macro_rules! name_of {
     ($t:tt::$field:ident) => {
         {
