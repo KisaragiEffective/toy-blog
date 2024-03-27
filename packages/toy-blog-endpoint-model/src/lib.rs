@@ -223,9 +223,9 @@ impl FromStr for OneOriginTwoDigitsMonth {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let try_new = |a| Self::try_from(a);
+        let try_new = Self::try_from;
 
-        let v = match s {
+        match s {
             "01" => try_new(1),
             "02" => try_new(2),
             "03" => try_new(3),
@@ -238,10 +238,8 @@ impl FromStr for OneOriginTwoDigitsMonth {
             "10" => try_new(10),
             "11" => try_new(11),
             "12" => try_new(12),
-            _ => return Err(())
-        };
-
-        v
+            _ => Err(())
+        }
     }
 }
 
