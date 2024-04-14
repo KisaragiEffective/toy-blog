@@ -8,7 +8,7 @@ impl HostingUrlBaseWithoutSchema {
     fn new(hostname: String, path: String) -> Result<Self, ()> {
         // 絶対スラッシュで始まってほしい
         // かつスラッシュで終わってほしくないが、スラッシュだけの場合は許可
-        if path.starts_with("/") && (!path.ends_with("/") || path == "/") {
+        if path.starts_with('/') && (!path.ends_with('/') || path == "/") {
             Ok(Self {
                 hostname,
                 paths: path

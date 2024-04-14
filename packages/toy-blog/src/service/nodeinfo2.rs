@@ -62,9 +62,9 @@ pub enum NodeInfo2Version {
 impl NodeInfo2Version {
     pub(crate) fn schema_url(self) -> &'static str {
         match self {
-            NodeInfo2Version::V2_0 => "https://nodeinfo.diaspora.software/ns/schema/2.0",
-            NodeInfo2Version::V2_1 => "https://nodeinfo.diaspora.software/ns/schema/2.1",
-            NodeInfo2Version::V2_2 => "https://nodeinfo.diaspora.software/ns/schema/2.2",
+            Self::V2_0 => "https://nodeinfo.diaspora.software/ns/schema/2.0",
+            Self::V2_1 => "https://nodeinfo.diaspora.software/ns/schema/2.1",
+            Self::V2_2 => "https://nodeinfo.diaspora.software/ns/schema/2.2",
         }
     }
 }
@@ -116,8 +116,8 @@ pub enum ProtocolTable<'a> {
 impl ProtocolTable<'_> {
     fn is_empty(&self) -> bool {
         match self {
-            ProtocolTable::Custom(t) => t.0.is_empty(),
-            ProtocolTable::Valid(t) => t.0.is_empty(),
+            Self::Custom(t) => t.0.is_empty(),
+            Self::Valid(t) => t.0.is_empty(),
         }
     }
 }
@@ -136,7 +136,7 @@ impl<T: AsRef<str>> Serialize for SerializeAsRefStr<T> {
 pub enum ValidProtocol {
     ActivityPub,
     BuddyCloud,
-    DFRN,
+    Dfrn,
     Dlaspora,
     Libertree,
     Nostr,
@@ -150,17 +150,17 @@ pub enum ValidProtocol {
 impl AsRef<str> for ValidProtocol {
     fn as_ref(&self) -> &str {
         match self {
-            ValidProtocol::ActivityPub => "activitypub",
-            ValidProtocol::BuddyCloud => "buddycloud",
-            ValidProtocol::DFRN => "dfrn",
-            ValidProtocol::Dlaspora => "dlaspora",
-            ValidProtocol::Libertree => "libertree",
-            ValidProtocol::Nostr => "nostr",
-            ValidProtocol::OStatus => "ostatus",
-            ValidProtocol::PumpIo => "pumpio",
-            ValidProtocol::Tent => "tent",
-            ValidProtocol::Xmpp => "xmpp",
-            ValidProtocol::Zot => "zot",
+            Self::ActivityPub => "activitypub",
+            Self::BuddyCloud => "buddycloud",
+            Self::Dfrn => "dfrn",
+            Self::Dlaspora => "dlaspora",
+            Self::Libertree => "libertree",
+            Self::Nostr => "nostr",
+            Self::OStatus => "ostatus",
+            Self::PumpIo => "pumpio",
+            Self::Tent => "tent",
+            Self::Xmpp => "xmpp",
+            Self::Zot => "zot",
         }
     }
 }
