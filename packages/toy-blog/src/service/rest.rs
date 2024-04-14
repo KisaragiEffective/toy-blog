@@ -4,6 +4,9 @@ pub(in crate::service) mod repository;
 mod auth;
 mod exposed_representation_format;
 mod header;
+#[cfg(feature = "unstable_nodeinfo2")]
+mod node_info;
+mod well_known;
 
 use std::fs::File;
 use std::io::stdin;
@@ -82,7 +85,7 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
             r#"%a %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#
         };
 
-        App::new()
+        let app = App::new()
             .service(prefixed_service("/api")
                 .service(
                     (
@@ -104,7 +107,20 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
                             .service(article_id_list_by_year_and_month)
                     )
                 )
+            );
+
+        #[cfg(feature = "unstable_nodeinfo2")]
+        let app = app
+            .service(
+                prefixed_service("/.well-known")
+                    .service(well_known::node_info)
             )
+            .service(
+                prefixed_service("/nodeinfo")
+                    .service(node_info::node_info_2)
+            );
+
+        app
             .app_data(
                 BearerAuthConfig::default()
                     .realm("Perform write operation")
