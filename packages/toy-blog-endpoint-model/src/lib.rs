@@ -173,9 +173,9 @@ pub enum Visibility {
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct ArticleIdSet(pub Vec<ArticleListResponseEntry>);
+pub struct ArticleListingResponseRepresentation(pub Vec<ArticleListResponseEntry>);
 
-pub struct ArticleIdSetMetadata {
+pub struct ArticleListingResponseMetadata {
     pub oldest_created_at: Option<DateTime<Local>>,
     pub newest_updated_at: Option<DateTime<Local>>,
 }

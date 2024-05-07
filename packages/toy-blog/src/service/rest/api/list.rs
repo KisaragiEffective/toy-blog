@@ -4,7 +4,7 @@ use actix_web::{get, Responder};
 use actix_web::web::Path;
 use chrono::Datelike;
 
-use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleIdSet, ArticleIdSetMetadata, ArticleListResponseEntry, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
+use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ArticleListResponseEntry, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
 
 use crate::service::persistence::ArticleRepository;
 use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, MaybeNotModified, ReportLastModofied};
@@ -32,7 +32,7 @@ fn compute_and_filter_out(
         ret_304 = false;
     }
 
-    let entries = ArticleIdSet(x.iter().filter(only_public).filter(additional_filter.clone())
+    let entries = ArticleListingResponseRepresentation(x.iter().filter(only_public).filter(additional_filter.clone())
         .map(|(id, a)| ArticleListResponseEntry {
             id: id.clone(),
             created_at: a.created_at,
@@ -47,7 +47,7 @@ fn compute_and_filter_out(
         MaybeNotModified {
             inner: ReportLastModofied {
                 inner: OwnedMetadata {
-                    metadata: ArticleIdSetMetadata {
+                    metadata: ArticleListingResponseMetadata {
                         oldest_created_at: old_cre,
                         newest_updated_at: new_upd,
                     },

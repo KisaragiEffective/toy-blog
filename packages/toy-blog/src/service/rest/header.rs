@@ -67,20 +67,14 @@ impl FromRequest for LastModified {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        let w = req.headers().get("Last-Modified")
-            .ok_or(HttpDateExtractionError::NotFound);
-        let w = match w {
-            Ok(t) => t,
-            Err(e) => return std::future::ready(Err(e)),
+        let inner = || {
+            let w = req.headers().get("Last-Modified")
+                .ok_or(HttpDateExtractionError::NotFound)?;
+            let r = Self::try_from(w)?;
+            Ok(r)
         };
 
-        let r = Self::try_from(w);
-        let r = match r {
-            Ok(t) => t,
-            Err(e) => return std::future::ready(Err(HttpDateExtractionError::from(e))),
-        };
-
-        std::future::ready(Ok(r))
+        std::future::ready(inner())
     }
 }
 
