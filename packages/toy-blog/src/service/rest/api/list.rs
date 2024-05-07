@@ -128,7 +128,7 @@ mod tests {
     use crate::service::rest::api::list::{article_id_list0, article_id_list_by_year0, article_id_list_by_year_and_month0};
 
     #[test]
-    fn do_not_leak() {
+    fn do_not_include_non_public_article() {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn do_not_leak_by_year() {
+    fn do_not_include_non_public_article_by_year_filter() {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn do_not_leak_by_year_and_month() {
+    fn do_not_include_non_public_article_by_year_and_month_filter() {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
