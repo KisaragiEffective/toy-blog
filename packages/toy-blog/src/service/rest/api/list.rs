@@ -32,8 +32,12 @@ fn compute_and_filter_out(
         ret_304 = false;
     }
 
-    let id = ArticleIdSet(x.iter().filter(only_public).filter(additional_filter.clone())
-        .map(|x| &x.0).cloned().collect());
+    let entries = ArticleIdSet(x.iter().filter(only_public).filter(additional_filter.clone())
+        .map(|(id, a)| ArticleListResponseEntry {
+            id: id.clone(),
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+        }).collect());
     let old_cre = x.iter().filter(only_public).filter(additional_filter.clone())
         .min_by_key(|x| x.1.created_at).map(|x| x.1.created_at);
     let new_upd = x.iter().filter(only_public).filter(additional_filter)
@@ -47,7 +51,7 @@ fn compute_and_filter_out(
                         oldest_created_at: old_cre,
                         newest_updated_at: new_upd,
                     },
-                    data: id
+                    data: entries
                 },
                 latest_updated: latest_updated.map(|x| x.try_into().unwrap())
             },

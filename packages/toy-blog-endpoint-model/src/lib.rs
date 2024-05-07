@@ -173,11 +173,18 @@ pub enum Visibility {
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct ArticleIdSet(pub HashSet<ArticleId>);
+pub struct ArticleIdSet(pub Vec<ArticleListResponseEntry>);
 
 pub struct ArticleIdSetMetadata {
     pub oldest_created_at: Option<DateTime<Local>>,
     pub newest_updated_at: Option<DateTime<Local>>,
+}
+
+#[derive(Serialize, Clone, Eq, PartialEq, Debug)]
+pub struct ArticleListResponseEntry {
+    pub id: ArticleId,
+    pub created_at: DateTime<Local>,
+    pub updated_at: DateTime<Local>,
 }
 
 #[derive(Deserialize, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]

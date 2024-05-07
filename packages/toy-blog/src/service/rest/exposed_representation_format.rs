@@ -515,7 +515,9 @@ impl<Repr: Serialize> Serialize for ReportLastModofied<Repr> {
 }
 
 
-pub(super) struct ArticleIdCollectionResponseRepr(pub(super) MaybeNotModified<ReportLastModofied<OwnedMetadata<ArticleIdSetMetadata, ArticleIdSet>>>);
+pub(super) struct ArticleIdCollectionResponseRepr(
+    pub(super) MaybeNotModified<ReportLastModofied<OwnedMetadata<ArticleIdSetMetadata, ArticleIdSet>>>
+);
 
 impl HttpStatusCode for ArticleIdCollectionResponseRepr {
     fn call_status_code(&self) -> StatusCode {
