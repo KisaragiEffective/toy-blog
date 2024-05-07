@@ -4,7 +4,7 @@ use actix_web::{get, Responder};
 use actix_web::web::Path;
 use chrono::Datelike;
 
-use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleIdSet, ArticleIdSetMetadata, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
+use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ArticleListResponseEntry, OneOriginTwoDigitsMonth, OwnedMetadata, Visibility};
 
 use crate::service::persistence::ArticleRepository;
 use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, MaybeNotModified, ReportLastModofied};
@@ -32,8 +32,12 @@ fn compute_and_filter_out(
         ret_304 = false;
     }
 
-    let id = ArticleIdSet(x.iter().filter(only_public).filter(additional_filter.clone())
-        .map(|x| &x.0).cloned().collect());
+    let entries = ArticleListingResponseRepresentation(x.iter().filter(only_public).filter(additional_filter.clone())
+        .map(|(id, a)| ArticleListResponseEntry {
+            id: id.clone(),
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+        }).collect());
     let old_cre = x.iter().filter(only_public).filter(additional_filter.clone())
         .min_by_key(|x| x.1.created_at).map(|x| x.1.created_at);
     let new_upd = x.iter().filter(only_public).filter(additional_filter)
@@ -43,11 +47,11 @@ fn compute_and_filter_out(
         MaybeNotModified {
             inner: ReportLastModofied {
                 inner: OwnedMetadata {
-                    metadata: ArticleIdSetMetadata {
+                    metadata: ArticleListingResponseMetadata {
                         oldest_created_at: old_cre,
                         newest_updated_at: new_upd,
                     },
-                    data: id
+                    data: entries
                 },
                 latest_updated: latest_updated.map(|x| x.try_into().unwrap())
             },
@@ -124,7 +128,7 @@ mod tests {
     use crate::service::rest::api::list::{article_id_list0, article_id_list_by_year0, article_id_list_by_year_and_month0};
 
     #[test]
-    fn do_not_leak() {
+    fn do_not_include_non_public_article() {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -134,24 +138,24 @@ mod tests {
                 ArticleRepository::init(m.path());
                 let a = ArticleRepository::new(m.path()).await;
                 {
-                    let aa = ArticleId::new("123".to_string());
+                    let aa = ArticleId::new("12345".to_string());
                     a.create_entry(&aa, "12345".to_string(), Visibility::Private).unwrap();
                     let ac = article_id_list0(&a, None);
-                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    let m = ac.0.inner.inner.data.0.iter().find(|x| x.id == aa);
                     assert!(m.is_none());
                 }
                 {
-                    let aa = ArticleId::new("1234".to_string());
+                    let aa = ArticleId::new("123456".to_string());
                     a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).unwrap();
                     let ac = article_id_list0(&a, None);
-                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    let m = ac.0.inner.inner.data.0.iter().find(|x| x.id == aa);
                     assert!(m.is_none());
                 }
             });
     }
 
     #[test]
-    fn do_not_leak_by_year() {
+    fn do_not_include_non_public_article_by_year_filter() {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -161,24 +165,24 @@ mod tests {
                 ArticleRepository::init(m.path());
                 let a = ArticleRepository::new(m.path()).await;
                 {
-                    let aa = ArticleId::new("123".to_string());
+                    let aa = ArticleId::new("12345".to_string());
                     a.create_entry(&aa, "12345".to_string(), Visibility::Private).unwrap();
                     let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
-                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    let m = ac.0.inner.inner.data.0.iter().find(|x| x.id == aa);
                     assert!(m.is_none());
                 }
                 {
-                    let aa = ArticleId::new("1234".to_string());
+                    let aa = ArticleId::new("123456".to_string());
                     a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).unwrap();
                     let ac = article_id_list_by_year0(&a, AnnoDominiYear::try_from(Local::now().year() as u32).unwrap(), None);
-                    let m = ac.0.inner.inner.data.0.get(&aa);
+                    let m = ac.0.inner.inner.data.0.iter().find(|x| x.id == aa);
                     assert!(m.is_none());
                 }
             });
     }
 
     #[test]
-    fn do_not_leak_by_year_and_month() {
+    fn do_not_include_non_public_article_by_year_and_month_filter() {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -188,7 +192,7 @@ mod tests {
                 ArticleRepository::init(m.path());
                 let a = ArticleRepository::new(m.path()).await;
                 {
-                    let aa = ArticleId::new("123".to_string());
+                    let aa = ArticleId::new("12345".to_string());
                     a.create_entry(&aa, "12345".to_string(), Visibility::Private).unwrap();
                     let now = Local::now();
                     let ac = article_id_list_by_year_and_month0(
@@ -197,11 +201,11 @@ mod tests {
                             OneOriginTwoDigitsMonth::try_from(now.month() as u8).unwrap()
                         ), None
                     );
-                    let a = ac.0.inner.inner.data.0.get(&aa);
+                    let a = ac.0.inner.inner.data.0.iter().find(|x| x.id == aa);
                     assert!(a.is_none());
                 }
                 {
-                    let aa = ArticleId::new("1235".to_string());
+                    let aa = ArticleId::new("123456".to_string());
                     a.create_entry(&aa, "123456".to_string(), Visibility::Restricted).unwrap();
                     let now = Local::now();
                     let ac = article_id_list_by_year_and_month0(
@@ -210,7 +214,7 @@ mod tests {
                             OneOriginTwoDigitsMonth::try_from(now.month() as u8).unwrap()
                         ), None
                     );
-                    let a = ac.0.inner.inner.data.0.get(&aa);
+                    let a = ac.0.inner.inner.data.0.iter().find(|x| x.id == aa);
                     assert!(a.is_none());
                 }
             });
