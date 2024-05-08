@@ -108,10 +108,7 @@ impl ArticleRepository {
 
     pub fn update_entry(&self, article_id: &ArticleId, article_content: String) -> Result<(), PersistenceError> {
         self.invalidate();
-        // the lint suggestion causes borrow-to-temporary error
-        #[allow(clippy::significant_drop_tightening)]
         let mut m = self.cache.write().expect("cache is poisoned");
-        #[allow(clippy::significant_drop_tightening)]
         let find = m.data.get_mut(article_id);
         let Some(article) = find else {
             return Err(PersistenceError::AbsentValue)
@@ -120,6 +117,7 @@ impl ArticleRepository {
         let current_date = Local::now();
         article.updated_at = current_date;
         article.content = article_content;
+        drop(m);
 
         self.save()?;
         Ok(())
