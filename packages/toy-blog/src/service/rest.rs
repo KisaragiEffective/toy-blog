@@ -7,8 +7,11 @@ mod header;
 
 use std::fs::File;
 use std::io::stdin;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
-use actix_web::{App, HttpServer};
+use actix_web::{App, HttpResponseBuilder, HttpServer};
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::http::StatusCode;
 use actix_web::middleware::Logger;
 use anyhow::Context;
 use log::info;
@@ -21,6 +24,8 @@ use crate::service::rest::auth::WRITE_TOKEN;
 use crate::service::rest::repository::GLOBAL_FILE;
 use actix_web::web::scope as prefixed_service;
 use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
+use futures_util::future::LocalBoxFuture;
+use futures_util::FutureExt;
 
 mod inner_no_leak {
     use std::error::Error;
@@ -110,6 +115,29 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
                     .realm("Perform write operation")
                     .scope("article:write"),
             )
+            .wrap_fn(move |req, srv| {
+                let cloudflare_support = proxied_by_cloudflare;
+
+                const HATENA_BOOKMARK_CRAWLER: Ipv4Addr = Ipv4Addr::new(133, 242, 243, 6);
+                let extract_real_ip = |req: &ServiceRequest, cloudflare_support: bool| {
+                    if cloudflare_support {
+                        req.headers().get("CF-Connecting-IP")?.to_str().ok()?.parse::<IpAddr>().ok()
+                    } else {
+                        req.peer_addr().map(|x| x.ip())
+                    }
+                };
+
+                if extract_real_ip(&req, cloudflare_support).is_some_and(|x| x == HATENA_BOOKMARK_CRAWLER) {
+                    Box::pin(async {
+                        Ok(ServiceResponse::new(req.into_parts().0, HttpResponseBuilder::new(StatusCode::FORBIDDEN).body("Forbidden")))
+                    }) as LocalBoxFuture<Result<ServiceResponse, actix_web::Error>>
+                } else {
+                    use actix_web::dev::Service;
+
+                    Box::pin(srv.call(req).map(|x| x.map(|y| y.map_into_boxed_body())))  
+                        as LocalBoxFuture<Result<ServiceResponse, actix_web::Error>>
+                }
+            })
             .wrap(Logger::new(logger_format))
             .wrap(crate::service::rest::cors::middleware_factory())
     };
