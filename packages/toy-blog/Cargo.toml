@@ -25,6 +25,7 @@ strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.59"
 tokio = { version = "1.37.0", features = ["time", "macros"] }
 toy-blog-endpoint-model = { path = "../toy-blog-endpoint-model" }
+futures-util = "0.3.23"
 
 [features]
 
