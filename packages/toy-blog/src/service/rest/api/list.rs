@@ -9,7 +9,7 @@ use toy_blog_endpoint_model::{AnnoDominiYear, Article, ArticleId, ArticleListing
 use crate::service::persistence::ArticleRepository;
 use crate::service::rest::exposed_representation_format::{ArticleIdCollectionResponseRepr, EndpointRepresentationCompiler, MaybeNotModified, ReportLastModofied};
 use crate::service::rest::header::IfModifiedSince;
-use crate::service::rest::repository::GLOBAL_FILE;
+use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 
 fn compute_and_filter_out(
     article_repository: &ArticleRepository,
@@ -66,7 +66,7 @@ const ONCE_CELL_INITIALIZATION_ERROR: &str = "must be fully initialized";
 #[allow(clippy::unused_async)]
 pub fn article_id_list(if_modified_since: Option<IfModifiedSince>) -> impl Future<Output = impl Responder> {
     let v = EndpointRepresentationCompiler::from_value(
-        article_id_list0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since)
+        article_id_list0(GLOBAL_ARTICLE_REPOSITORY.get().expect(ONCE_CELL_INITIALIZATION_ERROR), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
         .map_into_boxed_body();
@@ -82,7 +82,7 @@ fn article_id_list0(repo: &ArticleRepository, if_modified_since: Option<IfModifi
 #[allow(clippy::unused_async)]
 pub fn article_id_list_by_year(path: Path<AnnoDominiYear>, if_modified_since: Option<IfModifiedSince>) -> impl Future<Output = impl Responder> {
     let v = EndpointRepresentationCompiler::from_value(
-        article_id_list_by_year0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
+        article_id_list_by_year0(GLOBAL_ARTICLE_REPOSITORY.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
         .map_into_boxed_body();
@@ -101,7 +101,7 @@ pub fn article_id_list_by_year_and_month(
     path: Path<(AnnoDominiYear, OneOriginTwoDigitsMonth)>, if_modified_since: Option<IfModifiedSince>
 ) -> impl Future<Output = impl Responder> {
     let v = EndpointRepresentationCompiler::from_value(
-        article_id_list_by_year_and_month0(GLOBAL_FILE.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
+        article_id_list_by_year_and_month0(GLOBAL_ARTICLE_REPOSITORY.get().expect(ONCE_CELL_INITIALIZATION_ERROR), path.into_inner(), if_modified_since)
     ).into_json()
         .map_body(|_, y| serde_json::to_string(&y).expect(""))
         .map_into_boxed_body();

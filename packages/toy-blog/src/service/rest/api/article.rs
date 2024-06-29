@@ -11,12 +11,12 @@ use once_cell::unsync::Lazy;
 use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, UpdateVisibilityPayload, Visibility};
 use crate::service::rest::auth::is_wrong_token;
 use crate::service::rest::inner_no_leak::{UnhandledError};
-use crate::service::rest::repository::GLOBAL_FILE;
+use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 use crate::service::persistence::ArticleRepository;
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
 
 fn x_get<'a>() -> &'a ArticleRepository {
-    GLOBAL_FILE.get().expect("must be fully-initialized")
+    GLOBAL_ARTICLE_REPOSITORY.get().expect("must be fully-initialized")
 }
 
 #[post("/{article_id}")]

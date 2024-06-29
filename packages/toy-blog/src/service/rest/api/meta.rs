@@ -8,7 +8,7 @@ use crate::service::rest::exposed_representation_format::EndpointRepresentationC
 use crate::service::rest::ComposeInternalError;
 use crate::service::rest::inner_no_leak::UnhandledError;
 use crate::service::persistence::PersistenceError;
-use crate::service::rest::repository::GLOBAL_FILE;
+use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 
 #[post("/change-id")]
 pub async fn change_id(query: Query<ChangeArticleIdRequestQuery>, bearer: BearerAuth) -> impl Responder {
@@ -21,7 +21,7 @@ pub async fn change_id(query: Query<ChangeArticleIdRequestQuery>, bearer: Bearer
             return Ok(Err(ChangeArticleIdError::Unauthorized))
         }
 
-        match GLOBAL_FILE.get().expect("must be fully-initialized").rename(&from, to) {
+        match GLOBAL_ARTICLE_REPOSITORY.get().expect("must be fully-initialized").rename(&from, to) {
             Ok(()) => {
                 Ok(Ok(()))
             }
