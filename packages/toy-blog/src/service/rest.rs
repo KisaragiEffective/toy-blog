@@ -21,7 +21,7 @@ use crate::service::persistence::ArticleRepository;
 use crate::service::rest::api::{article, meta};
 use crate::service::rest::api::list::{article_id_list, article_id_list_by_year, article_id_list_by_year_and_month};
 use crate::service::rest::auth::WRITE_TOKEN;
-use crate::service::rest::repository::GLOBAL_FILE;
+use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 use actix_web::web::scope as prefixed_service;
 use actix_web_httpauth::extractors::bearer::Config as BearerAuthConfig;
 use futures_util::future::LocalBoxFuture;
@@ -79,7 +79,7 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
     WRITE_TOKEN.set(bearer_token).unwrap();
 
     // TODO: AppやHttpServerの型変数が記述できないため関数にくくり出せない
-    GLOBAL_FILE.set(repo).expect("unreachable!");
+    GLOBAL_ARTICLE_REPOSITORY.set(repo).expect("unreachable!");
     let http_server_closure = |proxied_by_cloudflare| {
         let logger_format = if proxied_by_cloudflare {
             r#"%a (CF '%{CF-Connecting-IP}i') %t "%r" %s "%{Referer}i" "%{User-Agent}i" "#

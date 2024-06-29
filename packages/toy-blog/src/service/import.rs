@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::bail;
 use log::{debug, info};
 use toy_blog_endpoint_model::{ArticleId, Visibility};
-use crate::service::rest::repository::GLOBAL_FILE;
+use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 
 pub fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyhow::Error> {
     if !file_path.exists() {
@@ -28,7 +28,7 @@ pub fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyhow::Er
 
     match content {
         Ok(content) => {
-            GLOBAL_FILE.get().expect("must be fully-initialized").create_entry(article_id, content, Visibility::Private)?;
+            GLOBAL_ARTICLE_REPOSITORY.get().expect("must be fully-initialized").create_entry(article_id, content, Visibility::Private)?;
             info!("Successfully imported as {article_id}.");
             Ok(())
         }
