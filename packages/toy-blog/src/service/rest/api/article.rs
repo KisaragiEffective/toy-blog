@@ -67,52 +67,18 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
     EndpointRepresentationCompiler::from_value(res().await).into_plain_text()
 }
 
+enum Res {
+    Internal(UnhandledError),
+    General(GetArticleError),
+    Ok(OwnedMetadata<ArticleSnapshotMetadata, ArticleSnapshot>),
+}
+
 #[get("/{article_id}")]
 pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Responder {
+    let article_id = ArticleId::new(path.into_inner());
+    let res = fetch_business_logic(&article_id, auth);
 
-    enum Res {
-        Internal(UnhandledError),
-        General(GetArticleError),
-        Ok(OwnedMetadata<ArticleSnapshotMetadata, ArticleSnapshot>),
-    }
-
-    let res = || async {
-        let article_id = ArticleId::new(path.into_inner());
-
-        let exists = x_get().exists(&article_id);
-
-        if !exists {
-            return Res::General(GetArticleError::NoSuchArticleFoundById)
-        }
-
-        let content = match x_get().read_snapshot(&article_id) {
-            Ok(content) => content,
-            Err(e) => return Res::Internal(UnhandledError::new(e))
-        };
-
-        // Visibility::Restricted, Visibility::Publicは検証不要
-        if let (Visibility::Private, Some(auth)) = (content.visibility, auth) {
-            if is_wrong_token(auth.token()) {
-                return Res::General(GetArticleError::NoSuchArticleFoundById)
-            }
-            // now, private article can see from permitted user!
-        }
-
-        let u = content.updated_at;
-        let uo = u.offset();
-        let uu = u.with_timezone(uo);
-
-        Res::Ok(OwnedMetadata {
-            metadata: ArticleSnapshotMetadata {
-                updated_at: uu
-            },
-            data: ArticleSnapshot {
-                content: ArticleContent::new(content.content)
-            },
-        })
-    };
-
-    let x = match res().await {
+    let x = match res {
         Res::Internal(sre) => {
             error!("{sre:?}");
             return HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
@@ -122,6 +88,39 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
     };
 
     EndpointRepresentationCompiler::from_value(x).into_plain_text().map_into_boxed_body()
+}
+
+// TODO: テスト書く
+fn fetch_business_logic(article_id: &ArticleId, auth: Option<BearerAuth>) -> Res {
+    let exists = x_get().exists(article_id);
+
+    if !exists {
+        return Res::General(GetArticleError::NoSuchArticleFoundById)
+    }
+
+    let content = match x_get().read_snapshot(article_id) {
+        Ok(content) => content,
+        Err(e) => return Res::Internal(UnhandledError::new(e))
+    };
+
+    // Visibility::Restricted, Visibility::Publicは検証不要
+    if content.visibility == Visibility::Private && auth.map_or(true, |auth| is_wrong_token(auth.token())) {
+        return Res::General(GetArticleError::NoSuchArticleFoundById)
+        // now, private article can see from permitted user!
+    }
+
+    let u = content.updated_at;
+    let uo = u.offset();
+    let uu = u.with_timezone(uo);
+
+    Res::Ok(OwnedMetadata {
+        metadata: ArticleSnapshotMetadata {
+            updated_at: uu
+        },
+        data: ArticleSnapshot {
+            content: ArticleContent::new(content.content)
+        },
+    })
 }
 
 #[put("/{article_id}")]

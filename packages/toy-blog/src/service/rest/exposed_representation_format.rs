@@ -7,7 +7,7 @@ use actix_web::HttpResponse;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
 
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult, ArticleContent};
 
 use crate::service::rest::header::HttpDate;
 use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
