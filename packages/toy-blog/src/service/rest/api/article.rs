@@ -91,8 +91,8 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
         };
 
         // Visibility::Restricted, Visibility::Publicは検証不要
-        if let (Visibility::Private, Some(auth)) = (content.visibility, auth) {
-            if is_wrong_token(auth.token()) {
+        if content.visibility == Visibility::Private {
+            if auth.map_or(true, |auth| is_wrong_token(auth.token())) {
                 return Res::General(GetArticleError::NoSuchArticleFoundById)
             }
             // now, private article can see from permitted user!
