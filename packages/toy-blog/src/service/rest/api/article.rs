@@ -76,7 +76,7 @@ enum Res {
 #[get("/{article_id}")]
 pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
-    let res = fetch_business_logic(&article_id, auth).await;
+    let res = fetch_business_logic(&article_id, auth);
 
     let x = match res {
         Res::Internal(sre) => {
