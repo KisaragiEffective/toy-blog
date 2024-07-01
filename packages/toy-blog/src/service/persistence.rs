@@ -222,6 +222,11 @@ pub enum PersistenceError {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileScheme {
+    // 設計上の選択: Vec<(ArticleId, Article)> でも機能要件は満たせるが、非効率な線形探索することになり遅い。
+    // かといって、IDの先頭文字ごとにコレクションを分けるのはHashMapの再発明になるので不適当。
+    // そこで、記事群全体をHashMapで囲うことで非効率な線形探索を避けている。
+    // ハッシュ関数についての要件は現状存在しないためデフォルトのRandomStateを使う。こうすることによりHashDOSと
+    // 呼ばれる細工されたクエリを処理しようとすることで計算資源を枯渇させる攻撃から自動的に守られる。
     pub(in crate::service) data: HashMap<ArticleId, Article>
 }
 
