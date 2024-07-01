@@ -90,6 +90,7 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
     EndpointRepresentationCompiler::from_value(x).into_plain_text().map_into_boxed_body()
 }
 
+// TODO: テスト書く
 async fn fetch_business_logic(article_id: &ArticleId, auth: Option<BearerAuth>) -> Res {
     let exists = x_get().exists(&article_id);
 
