@@ -91,23 +91,21 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
 }
 
 // TODO: テスト書く
-async fn fetch_business_logic(article_id: &ArticleId, auth: Option<BearerAuth>) -> Res {
-    let exists = x_get().exists(&article_id);
+fn fetch_business_logic(article_id: &ArticleId, auth: Option<BearerAuth>) -> Res {
+    let exists = x_get().exists(article_id);
 
     if !exists {
         return Res::General(GetArticleError::NoSuchArticleFoundById)
     }
 
-    let content = match x_get().read_snapshot(&article_id) {
+    let content = match x_get().read_snapshot(article_id) {
         Ok(content) => content,
         Err(e) => return Res::Internal(UnhandledError::new(e))
     };
 
     // Visibility::Restricted, Visibility::Publicは検証不要
-    if content.visibility == Visibility::Private {
-        if auth.map_or(true, |auth| is_wrong_token(auth.token())) {
-            return Res::General(GetArticleError::NoSuchArticleFoundById)
-        }
+    if content.visibility == Visibility::Private && auth.map_or(true, |auth| is_wrong_token(auth.token())) {
+        return Res::General(GetArticleError::NoSuchArticleFoundById)
         // now, private article can see from permitted user!
     }
 
