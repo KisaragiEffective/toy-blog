@@ -13,6 +13,8 @@ use crate::service::rest::auth::is_wrong_token;
 use crate::service::rest::inner_no_leak::{UnhandledError};
 use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 use crate::service::persistence::ArticleRepository;
+use crate::service::rest::exposed_representation_format::{MaybeNotModified, ReportLastModofied};
+use crate::service::rest::header::{IfModifiedSince, LastModified};
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
 
 fn x_get<'a>() -> &'a ArticleRepository {
@@ -70,13 +72,13 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
 enum Res {
     Internal(UnhandledError),
     General(GetArticleError),
-    Ok(OwnedMetadata<ArticleSnapshotMetadata, ArticleSnapshot>),
+    Ok(OwnedMetadata<ArticleSnapshotMetadata, MaybeNotModified<ReportLastModofied<ArticleSnapshot>>>),
 }
 
 #[get("/{article_id}")]
-pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Responder {
+pub async fn fetch(path: Path<String>, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
-    let res = fetch_business_logic(&article_id, auth);
+    let res = fetch_business_logic(&article_id, opt_modified, auth);
 
     let x = match res {
         Res::Internal(sre) => {
@@ -91,7 +93,7 @@ pub async fn fetch(path: Path<String>, auth: Option<BearerAuth>) -> impl Respond
 }
 
 // TODO: テスト書く
-fn fetch_business_logic(article_id: &ArticleId, auth: Option<BearerAuth>) -> Res {
+fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> Res {
     let exists = x_get().exists(article_id);
 
     if !exists {
@@ -113,13 +115,18 @@ fn fetch_business_logic(article_id: &ArticleId, auth: Option<BearerAuth>) -> Res
     let uo = u.offset();
     let uu = u.with_timezone(uo);
 
-    Res::Ok(OwnedMetadata {
-        metadata: ArticleSnapshotMetadata {
-            updated_at: uu
+    Res::Ok(MaybeNotModified {
+        inner: ReportLastModofied {
+            inner: OwnedMetadata {
+                metadata: ArticleSnapshotMetadata {
+                    updated_at: uu
+                },
+                data: ArticleSnapshot {
+                    content: ArticleContent::new(content.content)
+                },
+            }
         },
-        data: ArticleSnapshot {
-            content: ArticleContent::new(content.content)
-        },
+        is_modified: opt_modified.is_some_and(|after| after.0.0 >= content.updated_at),
     })
 }
 
