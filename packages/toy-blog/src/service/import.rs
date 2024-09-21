@@ -19,12 +19,7 @@ pub fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyhow::Er
         bail!("Non-file paths are not supported")
     }
 
-    let content = {
-        let mut fd = BufReader::new(File::open(file_path)?);
-        let mut buf = vec![];
-        fd.read_to_end(&mut buf)?;
-        String::from_utf8(buf)
-    };
+    let content = std::fs::read_to_string(file_path);
 
     match content {
         Ok(content) => {
@@ -33,11 +28,7 @@ pub fn import(file_path: &Path, article_id: &ArticleId) -> Result<(), anyhow::Er
             Ok(())
         }
         Err(err) => {
-            bail!("The file is not UTF-8: {err}\
-                    Please review following list:\
-                    - The file is not binary\
-                    - The text is encoded with UTF-8\
-                    Especially, importing Shift-JIS texts are NOT supported.")
+            bail!("The file could not be read: {err}")
         }
     }
 }
