@@ -175,9 +175,8 @@ impl ArticleRepository {
         debug!("parsed");
         trace!("got: {got}", got = &got);
 
-        let j = serde_json::from_str(got.as_str()).map_err(|e| {
-            error!("{e}", e = &e);
-            e
+        let j = serde_json::from_str(got.as_str()).inspect_err(|e| {
+            error!("{e}", e = e);
         })?;
 
         Ok(j)
