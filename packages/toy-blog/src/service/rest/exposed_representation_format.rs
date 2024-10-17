@@ -15,6 +15,8 @@ use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
 #[cfg(test)]
 mod tests;
 
+pub type GetArticleResult = Result<MaybeNotModified<ReportLastModofied<GetArticleResultInner>>, GetArticleError>;
+
 // TODO: give more precise name
 type Pair = (HeaderName, HeaderValueUpdateMethod);
 
