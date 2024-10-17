@@ -68,7 +68,8 @@ pub enum CreateArticleError {
     InvalidUtf8,
 }
 
-pub type GetArticleResult = Result<OwnedMetadata<ArticleSnapshotMetadata, MaybeNotModified<ReportLastModofied<ArticleSnapshot>>>, GetArticleError>;
+pub type GetArticleResult = Result<GetArticleResultInner, GetArticleError>;
+pub type GetArticleResultInner = OwnedMetadata<ArticleSnapshotMetadata, ArticleSnapshot>;
 
 pub struct OwnedMetadata<M, D> {
     pub metadata: M,
