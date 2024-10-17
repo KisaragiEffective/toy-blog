@@ -14,7 +14,7 @@ use crate::service::rest::inner_no_leak::{UnhandledError};
 use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 use crate::service::persistence::ArticleRepository;
 use crate::service::rest::exposed_representation_format::{MaybeNotModified, ReportLastModofied};
-use crate::service::rest::header::{IfModifiedSince, LastModified};
+use crate::service::rest::header::{HttpDate, IfModifiedSince, LastModified};
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
 
 fn x_get<'a>() -> &'a ArticleRepository {
@@ -72,7 +72,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
 enum Res {
     Internal(UnhandledError),
     General(GetArticleError),
-    Ok(OwnedMetadata<ArticleSnapshotMetadata, MaybeNotModified<ReportLastModofied<ArticleSnapshot>>>),
+    Ok(MaybeNotModified<ReportLastModofied<OwnedMetadata<ArticleSnapshotMetadata, ArticleSnapshot>>>),
 }
 
 #[get("/{article_id}")]
@@ -124,7 +124,8 @@ fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedS
                 data: ArticleSnapshot {
                     content: ArticleContent::new(content.content)
                 },
-            }
+            },
+            latest_updated: Some(HttpDate(uu)),
         },
         is_modified: opt_modified.is_some_and(|after| after.0.0 >= content.updated_at),
     })
