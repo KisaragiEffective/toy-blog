@@ -7,7 +7,7 @@ use actix_web::HttpResponse;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
 
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult, ArticleContent};
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult, GetArticleResultInner, ArticleContent};
 
 use crate::service::rest::header::HttpDate;
 use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
@@ -226,7 +226,14 @@ impl IntoPlainText for CreateArticleResult {
 impl HttpStatusCode for GetArticleResult {
     fn call_status_code(&self) -> StatusCode {
         match self {
-            Ok(_) => StatusCode::OK,
+            // TODO: this should be encapsulated in MaybeNotModified
+            Ok(v) => {
+                if v.is_modified {
+                    StatusCode::OK
+                } else {
+                    StatusCode::NOT_MODIFIED
+                }
+            },
             Err(y) => {
                 match y {
                     GetArticleError::NoSuchArticleFoundById => StatusCode::NOT_FOUND,
