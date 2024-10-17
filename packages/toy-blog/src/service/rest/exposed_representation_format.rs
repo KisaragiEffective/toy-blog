@@ -255,7 +255,7 @@ impl ContainsHeaderMap for GetArticleResult {
                     (
                         LAST_MODIFIED,
                         HeaderValueUpdateMethod::Overwrite(
-                            HttpFormattedDate::new(d.metadata.updated_at).to_string().try_into().unwrap()
+                            HttpFormattedDate::new(d.inner.inner.metadata.updated_at).to_string().try_into().unwrap()
                         )
                     )
                 )
@@ -268,7 +268,7 @@ impl IntoPlainText for GetArticleResult {
     fn into_plain_text(self) -> String {
         match self {
             Ok(article) => {
-                let OwnedMetadata { metadata: _, data } = article;
+                let data = article.inner.inner.data;
                 data.content.into_inner()
             }
             Err(e) => {
