@@ -6,7 +6,7 @@ use actix_web::http::header::USER_AGENT;
 use actix_web::http::StatusCode;
 use actix_web::web::{Bytes, Json, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use log::{error, info};
+use log::{debug, error, info};
 use once_cell::unsync::Lazy;
 use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, UpdateVisibilityPayload, Visibility};
 use crate::service::rest::auth::is_wrong_token;
@@ -69,6 +69,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
     EndpointRepresentationCompiler::from_value(res().await).into_plain_text()
 }
 
+#[derive(Debug)]
 enum Res {
     Internal(UnhandledError),
     General(GetArticleError),
@@ -79,6 +80,7 @@ enum Res {
 pub async fn fetch(path: Path<String>, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> impl Responder {
     let article_id = ArticleId::new(path.into_inner());
     let res = fetch_business_logic(&article_id, opt_modified, auth);
+    debug!("response = {res:?}");
 
     let x = match res {
         Res::Internal(sre) => {
@@ -127,7 +129,7 @@ fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedS
             },
             latest_updated: Some(HttpDate(uu)),
         },
-        is_modified: opt_modified.is_some_and(|after| after.0.0 >= content.updated_at),
+        eligible_for_304: opt_modified.is_some_and(|after| after.0.0 >= content.updated_at),
     })
 }
 

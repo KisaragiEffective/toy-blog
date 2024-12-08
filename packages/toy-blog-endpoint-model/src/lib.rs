@@ -71,19 +71,23 @@ pub enum CreateArticleError {
 pub type GetArticleResult = Result<GetArticleResultInner, GetArticleError>;
 pub type GetArticleResultInner = OwnedMetadata<ArticleSnapshotMetadata, ArticleSnapshot>;
 
+#[derive(Debug)]
 pub struct OwnedMetadata<M, D> {
     pub metadata: M,
     pub data: D
 }
 
+#[derive(Debug)]
 pub struct ArticleSnapshotMetadata {
     pub updated_at: chrono::DateTime<FixedOffset>,
 }
 
+#[derive(Debug)]
 pub struct ArticleSnapshot {
     pub content: ArticleContent,
 }
 
+#[derive(Debug)]
 pub struct ArticleContent(String);
 
 impl ArticleContent {
@@ -97,6 +101,7 @@ impl ArticleContent {
     }
 }
 
+#[derive(Debug)]
 pub enum GetArticleError {
     NoSuchArticleFoundById,
 }

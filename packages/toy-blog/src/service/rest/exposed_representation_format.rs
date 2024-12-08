@@ -448,14 +448,15 @@ impl IntoPlainText for ChangeArticleIdRequestResult {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct MaybeNotModified<Repr> {
     pub(super) inner: Repr,
-    pub(super) is_modified: bool,
+    pub(super) eligible_for_304: bool,
 }
 
 impl<Repr: HttpStatusCode> HttpStatusCode for MaybeNotModified<Repr> {
     fn call_status_code(&self) -> StatusCode {
-        if self.is_modified {
+        if self.eligible_for_304 {
             StatusCode::NOT_MODIFIED
         } else {
             self.inner.call_status_code()
@@ -483,6 +484,7 @@ impl<Repr: Serialize> Serialize for MaybeNotModified<Repr> {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct ReportLastModofied<Repr> {
     pub(super) inner: Repr,
     pub(super) latest_updated: Option<HttpDate>,
