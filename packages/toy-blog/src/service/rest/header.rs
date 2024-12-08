@@ -68,8 +68,9 @@ impl FromRequest for LastModified {
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         let inner = || {
-            let w = req.headers().get("Last-Modified")
-                .ok_or(HttpDateExtractionError::NotFound)?;
+            const HEADER_NAME: &str = "Last-Modified";
+            let w = req.headers().get(HEADER_NAME)
+                .ok_or(HttpDateExtractionError::NotFound { header_name: HEADER_NAME.into() })?;
             let r = Self::try_from(w)?;
             Ok(r)
         };
@@ -94,8 +95,10 @@ impl FromRequest for IfModifiedSince {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        let w = req.headers().get("If-Modified-Since")
-            .ok_or(HttpDateExtractionError::NotFound);
+        const HEADER_NAME: &str = "If-Modified-Since";
+        
+        let w = req.headers().get(HEADER_NAME)
+            .ok_or(HttpDateExtractionError::NotFound { header_name: HEADER_NAME.into() });
         let w = match w {
             Ok(t) => t,
             Err(e) => return std::future::ready(Err(e)),
@@ -113,8 +116,10 @@ impl FromRequest for IfModifiedSince {
 
 #[derive(Error, Debug)]
 pub enum HttpDateExtractionError {
-    #[error("request does not have Last-Modified header")]
-    NotFound,
+    #[error("request does not have {header_name} header")]
+    NotFound {
+        header_name: Box<str>
+    },
     #[error("header value is malformed: {0}")]
     ParseFailure(#[from] HttpDateParseError),
 }
