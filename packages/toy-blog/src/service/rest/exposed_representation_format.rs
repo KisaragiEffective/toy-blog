@@ -230,10 +230,10 @@ impl HttpStatusCode for GetArticleResult {
         match self {
             // TODO: this should be encapsulated in MaybeNotModified
             Ok(v) => {
-                if v.is_modified {
-                    StatusCode::OK
-                } else {
+                if v.eligible_for_304 {
                     StatusCode::NOT_MODIFIED
+                } else {
+                    StatusCode::OK
                 }
             },
             Err(y) => {
