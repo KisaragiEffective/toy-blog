@@ -1,13 +1,13 @@
 use std::fmt::{Display, Formatter};
-use std::iter::{Chain, Empty, empty};
+use std::iter::{empty, Chain, Empty};
 
-use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
+use actix_web::http::header::{HeaderName, HeaderValue, CONTENT_TYPE, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
 
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult, GetArticleResultInner};
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseMetadata, ArticleListingResponseRepresentation, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult, GetArticleResultInner};
 
 use crate::service::rest::header::HttpDate;
 use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};

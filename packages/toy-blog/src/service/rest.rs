@@ -134,7 +134,7 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
                 } else {
                     use actix_web::dev::Service;
 
-                    Box::pin(srv.call(req).map(|x| x.map(|y| y.map_into_boxed_body())))  
+                    Box::pin(srv.call(req).map(|x| x.map(actix_web::dev::ServiceResponse::map_into_boxed_body)))  
                         as LocalBoxFuture<Result<ServiceResponse, actix_web::Error>>
                 }
             })
