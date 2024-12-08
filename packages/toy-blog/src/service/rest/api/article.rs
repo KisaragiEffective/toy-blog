@@ -8,7 +8,7 @@ use actix_web::web::{Bytes, Json, Path};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use log::{debug, error, info};
 use once_cell::unsync::Lazy;
-use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, UpdateVisibilityPayload, Visibility};
+use toy_blog_endpoint_model::{ArticleContent, ArticleCreatedNotice, ArticleCreateWarning, ArticleId, ArticleSnapshot, ArticleSnapshotMetadata, CreateArticleError, DeleteArticleError, GetArticleError, OwnedMetadata, UpdateArticleError, UpdateVisibilityPayload, Visibility, Article};
 use crate::service::rest::auth::is_wrong_token;
 use crate::service::rest::inner_no_leak::{UnhandledError};
 use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
@@ -94,7 +94,6 @@ pub async fn fetch(path: Path<String>, opt_modified: Option<IfModifiedSince>, au
     EndpointRepresentationCompiler::from_value(x).into_plain_text().map_into_boxed_body()
 }
 
-// TODO: テスト書く
 fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> Res {
     let exists = x_get().exists(article_id);
 
@@ -107,6 +106,11 @@ fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedS
         Err(e) => return Res::Internal(UnhandledError::new(e))
     };
 
+    create_api_response_for_snapshot(content, opt_modified, auth)
+}
+
+// TODO: テスト書く
+fn create_api_response_for_snapshot(content: Article, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> Res {
     // Visibility::Restricted, Visibility::Publicは検証不要
     if content.visibility == Visibility::Private && auth.map_or(true, |auth| is_wrong_token(auth.token())) {
         return Res::General(GetArticleError::NoSuchArticleFoundById)
@@ -131,6 +135,103 @@ fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedS
         },
         eligible_for_304: opt_modified.is_some_and(|after| after.0.0 >= content.updated_at),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::{Add, Sub};
+    use chrono::{DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta};
+    use toy_blog_endpoint_model::{Article, Visibility};
+    use crate::service::rest::api::article::{create_api_response_for_snapshot, Res};
+    use crate::service::rest::header::{HttpDate, IfModifiedSince};
+
+    #[test]
+    fn not_given() {
+        let c = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2024, 6, 12).expect("valid date"),
+            NaiveTime::from_hms_opt(21, 16, 3).expect("valid time"),
+        );
+        
+        let dt = c.and_local_timezone(Local).unwrap();
+        let call = create_api_response_for_snapshot(Article {
+            created_at: dt,
+            updated_at: dt,
+            content: "".to_string(),
+            visibility: Visibility::Public,
+        }, None, None);
+
+        match call {
+            Res::Internal(e) => {
+                panic!("{e}")
+            }
+            Res::General(e) => {
+                panic!("{e:?}")
+            }
+            Res::Ok(v) => {
+                assert!(!v.eligible_for_304, "It shouldn't be 304-eligible if If-Modified-Since is not given");
+            }
+        }
+    }
+
+    #[test]
+    fn given_too_old() {
+        let c = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2024, 6, 12).expect("valid date"),
+            NaiveTime::from_hms_opt(21, 16, 3).expect("valid time"),
+        );
+
+        let dt = c.and_local_timezone(Local).unwrap();
+        let threshold = c.and_local_timezone(FixedOffset::east_opt(0).expect("valid timezone")).unwrap().sub(TimeDelta::days(1));
+        
+        let call = create_api_response_for_snapshot(Article {
+            created_at: dt,
+            updated_at: dt,
+            content: "".to_string(),
+            visibility: Visibility::Public,
+        }, Some(IfModifiedSince(HttpDate(threshold))), None);
+
+        match call {
+            Res::Internal(e) => {
+                panic!("{e}")
+            }
+            Res::General(e) => {
+                panic!("{e:?}")
+            }
+            Res::Ok(v) => {
+                assert!(!v.eligible_for_304, "It shouldn't be 304-eligible because If-Modified-Since value is too old");
+            }
+        }
+    }
+    
+    #[test]
+    fn given() {
+        let c = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2024, 6, 12).expect("valid date"),
+            NaiveTime::from_hms_opt(21, 16, 3).expect("valid time"),
+        );
+
+        let dt = c.and_local_timezone(Local).unwrap();
+        let threshold = c.and_local_timezone(FixedOffset::east_opt(0).expect("valid timezone")).unwrap().add(TimeDelta::days(1));
+
+        let call = create_api_response_for_snapshot(Article {
+            created_at: dt,
+            updated_at: dt,
+            content: "".to_string(),
+            visibility: Visibility::Public,
+        }, Some(IfModifiedSince(HttpDate(threshold))), None);
+
+        match call {
+            Res::Internal(e) => {
+                panic!("{e}")
+            }
+            Res::General(e) => {
+                panic!("{e:?}")
+            }
+            Res::Ok(v) => {
+                assert!(v.eligible_for_304, "It should be 304-eligible because If-Modified-Since value is recent enough");
+            }
+        }
+    }
 }
 
 #[put("/{article_id}")]
