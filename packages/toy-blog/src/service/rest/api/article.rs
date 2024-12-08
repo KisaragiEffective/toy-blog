@@ -109,7 +109,6 @@ fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedS
     create_api_response_for_snapshot(content, opt_modified, auth)
 }
 
-// TODO: テスト書く
 fn create_api_response_for_snapshot(content: Article, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> Res {
     // Visibility::Restricted, Visibility::Publicは検証不要
     if content.visibility == Visibility::Private && auth.map_or(true, |auth| is_wrong_token(auth.token())) {
