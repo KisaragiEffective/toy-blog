@@ -55,7 +55,7 @@ fn compute_and_filter_out(
                 },
                 latest_updated: latest_updated.map(|x| x.try_into().unwrap())
             },
-            is_modified: ret_304,
+            eligible_for_304: ret_304,
         }
     )
 }

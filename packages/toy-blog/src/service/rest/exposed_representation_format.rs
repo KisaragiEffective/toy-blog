@@ -1,19 +1,21 @@
 use std::fmt::{Display, Formatter};
-use std::iter::{Chain, Empty, empty};
+use std::iter::{empty, Chain, Empty};
 
-use actix_web::http::header::{CONTENT_TYPE, HeaderName, HeaderValue, LAST_MODIFIED, WARNING};
+use actix_web::http::header::{HeaderName, HeaderValue, CONTENT_TYPE, LAST_MODIFIED, WARNING};
 use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use chrono::{FixedOffset, Utc};
 use serde::{Serialize, Serializer};
 
-use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseRepresentation, ArticleListingResponseMetadata, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, GetArticleResult, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult};
+use toy_blog_endpoint_model::{ArticleCreatedNotice, ArticleListingResponseMetadata, ArticleListingResponseRepresentation, ChangeArticleIdError, ChangeArticleIdRequestResult, CreateArticleError, CreateArticleResult, DeleteArticleError, DeleteArticleResult, GetArticleError, ListArticleResponse, ListArticleResult, OwnedMetadata, UpdateArticleError, UpdateArticleResult, GetArticleResultInner};
 
 use crate::service::rest::header::HttpDate;
 use crate::service::rest::inner_no_leak::{ComposeInternalError, UnhandledError};
 
 #[cfg(test)]
 mod tests;
+
+pub type GetArticleResult = Result<MaybeNotModified<ReportLastModofied<GetArticleResultInner>>, GetArticleError>;
 
 // TODO: give more precise name
 type Pair = (HeaderName, HeaderValueUpdateMethod);
@@ -226,7 +228,14 @@ impl IntoPlainText for CreateArticleResult {
 impl HttpStatusCode for GetArticleResult {
     fn call_status_code(&self) -> StatusCode {
         match self {
-            Ok(_) => StatusCode::OK,
+            // TODO: this should be encapsulated in MaybeNotModified
+            Ok(v) => {
+                if v.eligible_for_304 {
+                    StatusCode::NOT_MODIFIED
+                } else {
+                    StatusCode::OK
+                }
+            },
             Err(y) => {
                 match y {
                     GetArticleError::NoSuchArticleFoundById => StatusCode::NOT_FOUND,
@@ -255,7 +264,7 @@ impl ContainsHeaderMap for GetArticleResult {
                     (
                         LAST_MODIFIED,
                         HeaderValueUpdateMethod::Overwrite(
-                            HttpFormattedDate::new(d.metadata.updated_at).to_string().try_into().unwrap()
+                            HttpFormattedDate::new(d.inner.inner.metadata.updated_at).to_string().try_into().unwrap()
                         )
                     )
                 )
@@ -268,7 +277,7 @@ impl IntoPlainText for GetArticleResult {
     fn into_plain_text(self) -> String {
         match self {
             Ok(article) => {
-                let OwnedMetadata { metadata: _, data } = article;
+                let data = article.inner.inner.data;
                 data.content.into_inner()
             }
             Err(e) => {
@@ -439,14 +448,15 @@ impl IntoPlainText for ChangeArticleIdRequestResult {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct MaybeNotModified<Repr> {
     pub(super) inner: Repr,
-    pub(super) is_modified: bool,
+    pub(super) eligible_for_304: bool,
 }
 
 impl<Repr: HttpStatusCode> HttpStatusCode for MaybeNotModified<Repr> {
     fn call_status_code(&self) -> StatusCode {
-        if self.is_modified {
+        if self.eligible_for_304 {
             StatusCode::NOT_MODIFIED
         } else {
             self.inner.call_status_code()
@@ -474,6 +484,7 @@ impl<Repr: Serialize> Serialize for MaybeNotModified<Repr> {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct ReportLastModofied<Repr> {
     pub(super) inner: Repr,
     pub(super) latest_updated: Option<HttpDate>,
