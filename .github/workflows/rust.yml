@@ -19,19 +19,19 @@ jobs:
       matrix:
         include:
           - target: x86_64-pc-windows-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - target: x86_64-unknown-linux-musl
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             test: true
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             test: true
           - target: x86_64-apple-darwin
-            runner: macos-latest
+            runner: macos-14
             test: true
           # Oracle Cloud Infrastructure
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
     runs-on: ${{ matrix.runner }}
 
     steps:
