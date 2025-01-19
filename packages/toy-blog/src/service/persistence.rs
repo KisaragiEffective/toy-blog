@@ -270,7 +270,7 @@ impl NamedLockedFile {
 
 impl Drop for NamedLockedFile {
     fn drop(&mut self) {
-        if let Some(x) = self.file.unlock().err() {
+        if let Some(x) = fs2::FileExt::unlock(&self.file).err() {
             error!("unable to unlock article entry, ignoring error. detail: {x:?}");
         }
     }

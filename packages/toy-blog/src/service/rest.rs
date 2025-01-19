@@ -116,9 +116,9 @@ pub async fn boot_http_server(port: u16, host: &str, proxied_by_cloudflare: bool
                     .scope("article:write"),
             )
             .wrap_fn(move |req, srv| {
+                const HATENA_BOOKMARK_CRAWLER: Ipv4Addr = Ipv4Addr::new(133, 242, 243, 6);
                 let cloudflare_support = proxied_by_cloudflare;
 
-                const HATENA_BOOKMARK_CRAWLER: Ipv4Addr = Ipv4Addr::new(133, 242, 243, 6);
                 let extract_real_ip = |req: &ServiceRequest, cloudflare_support: bool| {
                     if cloudflare_support {
                         req.headers().get("CF-Connecting-IP")?.to_str().ok()?.parse::<IpAddr>().ok()

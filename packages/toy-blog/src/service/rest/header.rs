@@ -70,7 +70,7 @@ impl FromRequest for LastModified {
         let inner = || {
             const HEADER_NAME: &str = "Last-Modified";
             let w = req.headers().get(HEADER_NAME)
-                .ok_or(HttpDateExtractionError::NotFound { header_name: HEADER_NAME.into() })?;
+                .ok_or_else(|| HttpDateExtractionError::NotFound { header_name: HEADER_NAME.into() })?;
             let r = Self::try_from(w)?;
             Ok(r)
         };
@@ -98,7 +98,7 @@ impl FromRequest for IfModifiedSince {
         const HEADER_NAME: &str = "If-Modified-Since";
         
         let w = req.headers().get(HEADER_NAME)
-            .ok_or(HttpDateExtractionError::NotFound { header_name: HEADER_NAME.into() });
+            .ok_or_else(|| HttpDateExtractionError::NotFound { header_name: HEADER_NAME.into() });
         let w = match w {
             Ok(t) => t,
             Err(e) => return std::future::ready(Err(e)),

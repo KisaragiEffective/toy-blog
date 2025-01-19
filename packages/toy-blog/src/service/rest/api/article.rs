@@ -14,7 +14,7 @@ use crate::service::rest::inner_no_leak::{UnhandledError};
 use crate::service::rest::repository::GLOBAL_ARTICLE_REPOSITORY;
 use crate::service::persistence::ArticleRepository;
 use crate::service::rest::exposed_representation_format::{MaybeNotModified, ReportLastModofied};
-use crate::service::rest::header::{HttpDate, IfModifiedSince, LastModified};
+use crate::service::rest::header::{HttpDate, IfModifiedSince};
 use super::super::exposed_representation_format::EndpointRepresentationCompiler;
 
 fn x_get<'a>() -> &'a ArticleRepository {
@@ -48,7 +48,7 @@ pub async fn create(path: Path<String>, data: Bytes, bearer: BearerAuth, request
 
         let curl_like = request.headers().get(USER_AGENT)
             .and_then(|ua| ua.to_str().ok())
-            .map_or(false, |ua| ua.starts_with("curl/"));
+            .is_some_and(|ua| ua.starts_with("curl/"));
 
         let no_newline = Lazy::new(|| text.contains('\n'));
 
@@ -139,7 +139,7 @@ fn create_api_response_for_snapshot(content: Article, opt_modified: Option<IfMod
 #[cfg(test)]
 mod tests {
     use std::ops::{Add, Sub};
-    use chrono::{DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta};
+    use chrono::{FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta};
     use toy_blog_endpoint_model::{Article, Visibility};
     use crate::service::rest::api::article::{create_api_response_for_snapshot, Res};
     use crate::service::rest::header::{HttpDate, IfModifiedSince};
