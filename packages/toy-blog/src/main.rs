@@ -5,7 +5,6 @@
 #![allow(clippy::future_not_send)]
 #![deny(clippy::fallible_impl_from)]
 
-mod extension;
 mod service;
 mod migration;
 
