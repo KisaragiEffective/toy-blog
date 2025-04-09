@@ -111,7 +111,7 @@ fn fetch_business_logic(article_id: &ArticleId, opt_modified: Option<IfModifiedS
 
 fn create_api_response_for_snapshot(content: Article, opt_modified: Option<IfModifiedSince>, auth: Option<BearerAuth>) -> Res {
     // Visibility::Restricted, Visibility::Publicは検証不要
-    if content.visibility == Visibility::Private && auth.map_or(true, |auth| is_wrong_token(auth.token())) {
+    if content.visibility == Visibility::Private && auth.is_none_or(|auth| is_wrong_token(auth.token())) {
         return Res::General(GetArticleError::NoSuchArticleFoundById)
         // now, private article can see from permitted user!
     }
