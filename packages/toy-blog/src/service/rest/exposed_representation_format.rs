@@ -146,10 +146,27 @@ impl<T: IntoPlainText + HttpStatusCode + ContainsHeaderMap> EndpointRepresentati
 }
 
 impl<T: Serialize + HttpStatusCode + ContainsHeaderMap> EndpointRepresentationCompiler<T> {
-    pub fn into_json(self) -> HttpResponse<T> {
-        let mut res = HttpResponse::new(self.0.call_status_code());
-        res.headers_mut().insert(CONTENT_TYPE, "application/json".try_into().unwrap());
-        res.set_body(self.0)
+    pub fn into_json(self) -> HttpResponse {
+        let status = self.0.call_status_code();
+        let mut builder = HttpResponse::build(status);
+        builder.insert_header((CONTENT_TYPE, "application/json"));
+
+        for (k, v) in self.0.response_headers() {
+            match v {
+                HeaderValueUpdateMethod::Overwrite(v) => {
+                    builder.insert_header((k, v));
+                }
+                HeaderValueUpdateMethod::Append(v) => {
+                    builder.append_header((k, v));
+                }
+            }
+        }
+
+        if status == StatusCode::NOT_MODIFIED {
+            builder.finish()
+        } else {
+            builder.json(self.0)
+        }
     }
 }
 
@@ -474,13 +491,22 @@ impl<Repr: ContainsHeaderMap> ContainsHeaderMap for MaybeNotModified<Repr> {
 
 impl<Repr: IntoPlainText> IntoPlainText for MaybeNotModified<Repr> {
     fn into_plain_text(self) -> String {
-        self.inner.into_plain_text()
+        if self.eligible_for_304 {
+            String::new()
+        } else {
+            self.inner.into_plain_text()
+        }
     }
 }
 
 impl<Repr: Serialize> Serialize for MaybeNotModified<Repr> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-        self.inner.serialize(serializer)
+        if self.eligible_for_304 {
+            // RFC 7232: 304 responses MUST NOT contain a message-body
+            serializer.serialize_unit()
+        } else {
+            self.inner.serialize(serializer)
+        }
     }
 }
 
