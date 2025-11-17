@@ -504,7 +504,7 @@ impl<Repr: ContainsHeaderMap> ContainsHeaderMap for ReportLastModofied<Repr> {
         
         let to_be_chained = self.latest_updated.as_ref().map(|date| {
             (
-                HeaderName::from_static("Last-Updated"),
+                HeaderName::from_static("last-modified"),
                 HeaderValueUpdateMethod::Append(HeaderValue::from_str(&date.to_string()).expect("bug: http date"))
             )
         });
