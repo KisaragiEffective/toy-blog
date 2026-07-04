@@ -85,10 +85,10 @@ impl<C: ContainsHeaderMap> ContainsHeaderMap for ComposeInternalError<C> {
 }
 
 impl ContainsHeaderMap for UnhandledError {
-    type Iterator = VecIter<Pair>;
+    type Iterator = Empty<Pair>;
 
     fn response_headers(&self) -> Self::Iterator {
-        vec![].into_iter()
+        empty()
     }
 }
 
