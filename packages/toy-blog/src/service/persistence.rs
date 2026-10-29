@@ -173,10 +173,10 @@ impl ArticleRepository {
         read_all.read_to_end(&mut buf)?;
         let got = String::from_utf8(buf)?;
         debug!("parsed");
-        trace!("got: {got}", got = &got);
+        trace!("got: {got}");
 
         let j = serde_json::from_str(got.as_str()).inspect_err(|e| {
-            error!("{e}", e = e);
+            error!("{e}");
         })?;
 
         Ok(j)
