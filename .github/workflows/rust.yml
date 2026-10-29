@@ -86,7 +86,7 @@ jobs:
     - name: Install aarch64-w64-mingw32-clang
       id: setup-mingw-w64-aarch64
       run: |
-        sudo apt update && sudo apt install aarch64-w64-mingw32-clang
+        sudo apt update && sudo apt install clang
       if: ${{ matrix.target == 'aarch64-pc-windows-gnullvm' }}
     - name: Install x32 toolchain
       id: setup-x32-linux
