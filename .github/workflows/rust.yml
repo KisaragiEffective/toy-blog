@@ -26,6 +26,9 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
             test: true
+          # Experimental. See https://wiki.debian.org/X32Port
+          - target: x86_64-unknown-linux-gnux32
+            runner: ubuntu-24.04
           - target: x86_64-apple-darwin
             runner: macos-14
             test: true
@@ -55,6 +58,15 @@ jobs:
       run: |
         sudo apt update && sudo apt install gcc-mingw-w64-x86-64
       if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
+    - name: Install x32 toolchain
+      id: setup-x32-linux
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libc6-dev-x32 \
+          libx32gcc-s1 \
+          libx32gcc-13-dev
+      if: ${{ matrix.target == 'x86_64-unknown-linux-gnux32' }}
     - name: Download cache
       uses: Swatinem/rust-cache@v2
       with:
