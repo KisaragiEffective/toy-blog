@@ -26,6 +26,10 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
             test: true
+          # Experimental. See https://wiki.debian.org/X32Port
+          - target: x86_64-unknown-linux-gnux32
+            runner: ubuntu-24.04
+            test: true
           - target: x86_64-apple-darwin
             runner: macos-14
             test: true
