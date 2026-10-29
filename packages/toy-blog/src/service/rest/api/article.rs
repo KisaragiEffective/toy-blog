@@ -155,7 +155,7 @@ mod tests {
         let call = create_api_response_for_snapshot(Article {
             created_at: dt,
             updated_at: dt,
-            content: "".to_string(),
+            content: String::new(),
             visibility: Visibility::Public,
         }, None, None);
 
@@ -185,7 +185,7 @@ mod tests {
         let call = create_api_response_for_snapshot(Article {
             created_at: dt,
             updated_at: dt,
-            content: "".to_string(),
+            content: String::new(),
             visibility: Visibility::Public,
         }, Some(IfModifiedSince(HttpDate(threshold))), None);
 
@@ -215,7 +215,7 @@ mod tests {
         let call = create_api_response_for_snapshot(Article {
             created_at: dt,
             updated_at: dt,
-            content: "".to_string(),
+            content: String::new(),
             visibility: Visibility::Public,
         }, Some(IfModifiedSince(HttpDate(threshold))), None);
 
