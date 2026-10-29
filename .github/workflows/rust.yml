@@ -39,7 +39,7 @@ jobs:
             runner: ubuntu-24.04
           # Oracle Cloud Infrastructure
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-24.04-arm64
             test: true
           # Minimum tested targets for macOS was increased to 15 - GHA drops 14 support on 2026/11/2.
           - target: x86_64-apple-darwin
