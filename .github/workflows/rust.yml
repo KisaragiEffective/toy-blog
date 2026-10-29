@@ -20,7 +20,7 @@ jobs:
         include:
           - target: x86_64-pc-windows-gnu
             runner: ubuntu-26.04 # windows runner's IOs are so slow
-          - target: aarch64-pc-windows-gnu
+          - target: aarch64-pc-windows-gnullvm
             runner: ubuntu-26.04-arm # windows runner's IOs are so slow
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
