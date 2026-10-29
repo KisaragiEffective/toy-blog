@@ -1,22 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
-  ],
-  "packageRules": [
-    {
-      "description": "automerge Rust crate updates (>= 1.0.0)",
-      "matchUpdateTypes": ["minor", "patch"],
-      "matchManagers": ["cargo"],
-      "matchCurrentVersion": "!/^0/",
-      "automerge": true
-    },
-    {
-      "description": "automerge Rust crate updates (< 1.0.0)",
-      "matchUpdateTypes": ["patch"],
-      "matchManagers": ["cargo"],
-      "matchCurrentVersion": "/^0/",
-      "automerge": true
-    }
+    "config:base",
+    "github>ksrgtech/renovate-rust-crate-groups//groups/dtolnay-rapid-train.json",
+    "github>ksrgtech/renovate-crate-automerge"
   ]
 }
