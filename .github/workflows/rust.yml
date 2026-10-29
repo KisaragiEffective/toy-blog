@@ -25,15 +25,19 @@ jobs:
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
             test: true
+            libc: 'musl'
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-26.04
             test: true
+            libc: 'glibc'
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-26.04-arm
             test: true
-          - target: x86_64-unknown-linux-gnu
+            libc: 'musl'
+          - target: aarch64-unknown-linux-gnu
             runner: ubuntu-26.04-arm
             test: true
+            libc: 'glibc'
           # Experimental. See https://wiki.debian.org/X32Port
           - target: x86_64-unknown-linux-gnux32
             runner: ubuntu-26.04
@@ -41,6 +45,7 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-26.04-arm
             test: true
+            libc: 'glibc'
           # Minimum tested targets for macOS was increased to 15 - GHA drops 14 support on 2026/11/2.
           - target: x86_64-apple-darwin
             runner: macos-15-intel
@@ -64,10 +69,10 @@ jobs:
       run: |
         rustup target add '${{ matrix.target }}'
     - name: Install musl-tools
-      id: setup-x64-musl
+      id: setup-musl
       run: |
         sudo apt update && sudo apt install musl-tools
-      if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
+      if: ${{ matrix.libc == 'musl' }}
     - name: Install gcc-aarch64-linux-gnu
       id: setup-aarch64-linux
       run: |
