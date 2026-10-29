@@ -21,7 +21,7 @@ jobs:
           - target: x86_64-pc-windows-gnu
             runner: ubuntu-26.04 # windows runner's IOs are so slow
           - target: aarch64-pc-windows-gnu
-            runner: ubuntu-26.04-arm64 # windows runner's IOs are so slow
+            runner: ubuntu-26.04-arm # windows runner's IOs are so slow
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-26.04
             test: true
@@ -29,17 +29,17 @@ jobs:
             runner: ubuntu-26.04
             test: true
           - target: aarch64-unknown-linux-musl
-            runner: ubuntu-26.04-arm64
+            runner: ubuntu-26.04-arm
             test: true
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-26.04-arm64
+            runner: ubuntu-26.04-arm
             test: true
           # Experimental. See https://wiki.debian.org/X32Port
           - target: x86_64-unknown-linux-gnux32
             runner: ubuntu-26.04
           # Oracle Cloud Infrastructure
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-26.04-arm64
+            runner: ubuntu-26.04-arm
             test: true
           # Minimum tested targets for macOS was increased to 15 - GHA drops 14 support on 2026/11/2.
           - target: x86_64-apple-darwin
